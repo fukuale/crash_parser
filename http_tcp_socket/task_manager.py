@@ -38,54 +38,63 @@
 #                      |  |      (__| (__) (__(_
 #                                   |
 
-import socket
-import time
-import subprocess
+import multiprocessing
 import gevent
 
-# text_content = 'Done'
-text_content = '''
+# from parser_crash_info import Crash_Parser
+# from init_dsym import DownloadDSYM
 
-'''
+from http_tcp_socket.parse_crash_log import CrashParser
+from http_tcp_socket.init_dsym import DownloadDSYM
+from http_tcp_socket.subproc import SubProcessBase
 
-buff = bytes()
 
-HOST = ''
-PORT = 8000
+class TaskSchedule(object):
+    """docstring for TaskSchedule"""
 
-soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# if exist a TIME_WAIT status port. reuse it.
-soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    def __init__(self):
+        super(TaskSchedule, self).__init__()
 
-soc.bind((HOST, PORT))
+        self.packages_name = ['WeGamers', 'GameLive', 'Link']
 
-while True:
-    soc.listen(1)
-    conn, addr = soc.accept()
+        self.crash_data_clear = list()
+        self.crash_info_env = list()
+        self.crash_info_stacktrac = list()
+        self.crash_info_parse = list()
+        self.current_app_name = int()
+        self.dSYM_abspath = str()
 
-    conn.setblocking(False)
-    conn.settimeout(0.3)
-    while True:
-        raw_package = bytes()
+        self.parser = CrashParser(
+            cleardata=self.crash_data_clear,
+            stacktrac=self.crash_info_stacktrac,
+            atospase=self.crash_info_parse,
+            packagenames=self.packages_name,
+            curname=self.current_app_name
+        )
+        self.dSYM = DownloadDSYM()
+        self.parser.get_crash_info(pkgname=self.packages_name)
+        self.subproc = SubProcessBase()
 
-        try:
-            try:
+    def dSYM_need_not(self):
+        self.crash_info_env = self.parser.get_env_info()
+        print(self.crash_info_env)
+        is_dSYM = self.dSYM.init_dSYM(build_id=self.crash_info_env[1],
+                                      version_number=self.crash_info_env[0],
+                                      version_type=self.crash_info_env[2],
+                                      product=self.packages_name[self.current_app_name]
+                                      )
+        if is_dSYM:
+            self.dSYM_abspath = is_dSYM
+        else:
+            print('something went wrong... can\'t detected any dSYM file compare this case.')
 
-                raw_package = conn.recv(1024)
-            except BlockingIOError as e:
-                pass
+    def parse(self):
+        self.parser.call_atos(dSYM_file=self.dSYM_abspath,
+                              product_name=self.packages_name[self.current_app_name],
+                              proc=self.subproc)
 
-            if len(raw_package) == 0:
-                break
-            else:
-                buff += raw_package
 
-        except Exception as e:
-            print('Exception', e)
-            break
-    print('data', buff)
-    conn.sendall(text_content.encode())
-
-    print('\n\n\nclose\n\n\n')
-
-    conn.close()
+if __name__ == '__main__':
+    ts = TaskSchedule()
+    ts.dSYM_need_not()
+    ts.parse()

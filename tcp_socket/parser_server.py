@@ -14,8 +14,14 @@ soc.bind((HOST, PORT))
 soc.listen(3)
 
 conn, addr = soc.accept()
+while True:
 
-request = conn.recv(1024)
+    request = conn.recv(1024)
+
+    print(request)
+
+    if len(conn.recv(1024)) < 1024:
+        break
 
 print('request is :', addr)
 print('connected by', addr)
