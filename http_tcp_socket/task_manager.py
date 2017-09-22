@@ -44,14 +44,13 @@ import gevent
 # from parser_crash_info import Crash_Parser
 # from init_dsym import DownloadDSYM
 
-from http_tcp_socket.parse_crash_log import CrashParser
-from http_tcp_socket.init_dsym import DownloadDSYM
-from http_tcp_socket.subproc import SubProcessBase
+from parse_crash_log import CrashParser
+from init_dsym import DownloadDSYM
+from subproc import SubProcessBase
 
 
 class TaskSchedule(object):
     """docstring for TaskSchedule"""
-
     def __init__(self):
         super(TaskSchedule, self).__init__()
 
@@ -93,6 +92,8 @@ class TaskSchedule(object):
                               product_name=self.packages_name[self.current_app_name],
                               proc=self.subproc)
 
+
+    def start_service(self):
 
 if __name__ == '__main__':
     ts = TaskSchedule()

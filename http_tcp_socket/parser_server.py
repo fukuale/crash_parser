@@ -39,53 +39,56 @@
 #                                   |
 
 import socket
-import time
-import subprocess
-import gevent
 
-# text_content = 'Done'
-text_content = '''
 
-'''
+class Paser_Service(object):
+    """docstring for Paser_Service"""
 
-buff = bytes()
+    def __init__(self):
+        self.host = ''
+        self.port = 7724
+        self.buff = bytes()
 
-HOST = ''
-PORT = 8000
+    def init_socket(self):
+        soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        soc.bind((self.host, self.port))
+        return soc
 
-soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# if exist a TIME_WAIT status port. reuse it.
-soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    def handle_accept(self, soc):
+        soc.listen(3)
+        conn, addr = soc.accept()
+        conn.setblocking(False)
+        conn.settimeout(0.2)
+        self.receive_data(conn=conn)
+        print(self.buff)
+        conn.sendall(self.buff)
 
-soc.bind((HOST, PORT))
+        conn.close()
+        self.buff = bytes()
 
-while True:
-    soc.listen(1)
-    conn, addr = soc.accept()
-
-    conn.setblocking(False)
-    conn.settimeout(0.3)
-    while True:
-        raw_package = bytes()
-
-        try:
+    def receive_data(self, conn):
+        while True:
             try:
+                try:
+                    raw_package = conn.recv(1024)
+                except BlockingIOError as e:
+                    pass
 
-                raw_package = conn.recv(1024)
-            except BlockingIOError as e:
-                pass
+                if len(raw_package) == 0:
+                    break
+                else:
+                    self.buff += raw_package
 
-            if len(raw_package) == 0:
+            except Exception as e:
+                print('Exception', e)
                 break
-            else:
-                buff += raw_package
 
-        except Exception as e:
-            print('Exception', e)
-            break
-    print('data', buff)
-    conn.sendall(text_content.encode())
+    # def queop
 
-    print('\n\n\nclose\n\n\n')
 
-    conn.close()
+if __name__ == '__main__':
+    ps = Paser_Service()
+    socket = ps.init_socket()
+    while True:
+        ps.handle_accept(socket)

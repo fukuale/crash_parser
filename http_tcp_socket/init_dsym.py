@@ -39,7 +39,7 @@
 #                                   |
 
 import os, time
-from http_tcp_socket import subproc
+import subproc
 
 domain = 'http://10.0.2.188'
 wegamers_folder = 'GameIM'
