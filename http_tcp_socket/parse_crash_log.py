@@ -86,7 +86,7 @@ class CrashParser:
         # Complier regular expression
         ver = re.compile(r'\d+(\.\d+){0,2}')    # version code
         biu = re.compile(r'[\d]+')              # Consecutive numbers
-        typ = re.compile(r'[\u4e00-\u9fa5]+')
+        typ = re.compile(r'[\u4e00-\u9fa5]+')   # Match chinese
         for i in self.data_lines:
             if 'version' in i:
                 version_code = ver.search(i)
