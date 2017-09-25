@@ -1,5 +1,5 @@
 # Author = 'Vincent FUNG'
-# Create = '2017/09/20'
+# Create = '2017/09/25'
 #                       ::
 #                      :;J7, :,                        ::;7:
 #                      ,ivYi, ,                       ;LLLFS:
@@ -37,65 +37,72 @@
 #                      o _|_           __
 #                      |  |      (__| (__) (__(_
 #                                   |
+import os
+import tornado.options
+import tornado.ioloop
+import tornado.httpserver
+import tornado.web
 
-import multiprocessing
-import gevent
+from tornado.options import define, options
+from tornado.web import RequestHandler
+from tornado.websocket import WebSocketHandler
 
-# from parser_crash_info import Crash_Parser
-# from init_dsym import DownloadDSYM
+import parse_crash_log
 
-from parse_crash_log import CrashParser
-from init_dsym import DownloadDSYM
-from subproc import SubProcessBase
-
-
-class TaskSchedule(object):
-    """docstring for TaskSchedule"""
-    def __init__(self):
-        super(TaskSchedule, self).__init__()
-
-        self.packages_name = ['WeGamers', 'GameLive', 'Link']
-
-        self.crash_data_clear = list()
-        self.crash_info_env = list()
-        self.crash_info_stacktrac = list()
-        self.crash_info_parse = list()
-        self.current_app_name = int()
-        self.dSYM_abspath = str()
-
-        self.parser = CrashParser(
-            cleardata=self.crash_data_clear,
-            stacktrac=self.crash_info_stacktrac,
-            atospase=self.crash_info_parse,
-            packagenames=self.packages_name,
-            curname=self.current_app_name
-        )
-        self.dSYM = DownloadDSYM()
-        self.parser.get_crash_info(pkgname=self.packages_name)
-        self.subproc = SubProcessBase()
-
-    def dSYM_need_not(self):
-        self.crash_info_env = self.parser.get_env_info()
-        print(self.crash_info_env)
-        is_dSYM = self.dSYM.init_dSYM(build_id=self.crash_info_env[1],
-                                      version_number=self.crash_info_env[0],
-                                      version_type=self.crash_info_env[2],
-                                      product=self.packages_name[self.current_app_name]
-                                      )
-        if is_dSYM:
-            self.dSYM_abspath = is_dSYM
-        else:
-            print('something went wrong... can\'t detected any dSYM file compare this case.')
-
-    def parse(self):
-        self.parser.call_atos(dSYM_file=self.dSYM_abspath,
-                              product_name=self.packages_name[self.current_app_name],
-                              proc=self.subproc)
+define('port', default=7724, type=int)
 
 
-    def start_service(self):
+class IndexHandler(RequestHandler):
+    def get(self, *args, **kwargs):
+        self.render('crash_parser_index.html')
+
+    def post(self, *args, **kwargs):
+        self.get_argument('crash_log')
+
+    def data_received(self, chunk):
+        pass
+
+
+class ParserHandler(WebSocketHandler):
+    def open(self):
+        print('New socket connected !' + str(self))
+        self.write_message('WebSocket has been connected !')
+        pass
+
+    def on_close(self):
+        print('Socket' + str(self) + 'closed ！')
+        pass
+
+    def data_received(self, chunk):
+        pass
+
+    def on_message(self, message):
+        print(message)
+        print(type(message))
+        self.write_message('test result:' + message)
+        pass
+
+    def check_origin(self, origin):
+        return True
+
+def parse_log():
+    pcl = parse_crash_log()
+    pcl.call_atos()
+
+
+def run():
+    tornado.options.parse_command_line()
+    app = tornado.web.Application([
+        (r"/", IndexHandler),
+        (r"/push_crash", ParserHandler),
+    ],
+        template_path=os.path.join(os.path.dirname(__file__), "templates"),
+        debug=True
+    )
+    http_server = tornado.httpserver.HTTPServer(app)
+    http_server.listen(options.port)
+    tornado.ioloop.IOLoop.current().start()
+
 
 if __name__ == '__main__':
-    ts = TaskSchedule()
-    ts.dSYM_need_not()
-    ts.parse()
+    run()

@@ -27,5 +27,6 @@ print('request is :', addr)
 print('connected by', addr)
 
 conn.sendall(reply.encode('utf-8'))
+conn.sendall
 
 conn.close()

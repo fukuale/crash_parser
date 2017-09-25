@@ -48,6 +48,7 @@
         }
 
         .result_view {
+            text-align: left;
             float: right;
             position: relative;
             width: 48%;
@@ -82,11 +83,11 @@
         // Javascript Websocket Client
 
         if (window.WebSocket) {
-            socket = new WebSocket('ws://127.0.0.1:8000/push_crash');
+            socket = new WebSocket('ws://192.168.1.100:7724/push_crash');
 
             socket.onmessage = function(event) {
                 console.log(event);
-                var responed = document.getElementById('mmmmm');
+                var responed = document.getElementById('result_content');
 
                 responed.innerHTML ='<pre>' + event.data + '</pre>'
 
@@ -94,7 +95,7 @@
 
             socket.onopen = function(event) {
 
-                var responed = document.getElementById('mmmmm');
+                var responed = document.getElementById('result_content');
 
                 responed.value = "Web Socket opened!";
 
@@ -102,7 +103,7 @@
 
             socket.onclose = function(event) {
 
-                var responed = document.getElementById('mmmmm');
+                var responed = document.getElementById('result_content');
 
                 responed.value = "Web Socket closed";
 
@@ -122,7 +123,7 @@
 
             if (socket.readyState === WebSocket.OPEN) {
 
-                socket.send(message);
+                socket.send('<pre>' + message + '</pre>');
 
             } else {
 
@@ -130,6 +131,13 @@
 
             }
 
+        }
+
+        function clear_value() {
+            var cls_respon = document.getElementById('result_content');
+            var cls_submit = document.getElementById('crash_log');
+            cls_submit.value = "";
+            cls_respon.innerHTML = "";
         }
     </script>
     <body>
@@ -141,13 +149,14 @@
             <H1>Crash Parser</H1>
             <form method="post" action="/push_crash" onsubmit="return false;">
             <div class="submit_view">
-                <textarea title="crash_log_to_submit" name="crash_log"></textarea>
+                <textarea title="crash_log_to_submit" name="crash_log" id="crash_log"></textarea>
             </div>
             <div class="result_view">
-                <div id="mmmmm"></div>
+                <div id="result_content"></div>
             </div>
             <div style="clear:both"></div>
             <input type="button" id="btnSend" value="Submit it !" onclick="send(this.form.crash_log.value)"/>
+            <input type="button" id="btnClear" value="Clear Values !" onclick="clear_value()"/>
             </form>
         </div>
     </body>
