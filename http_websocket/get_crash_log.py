@@ -31,13 +31,13 @@ class GetCrashInfoFromServer(object):
         self.md5 = hashlib.md5()
         self.domain = 'http://gdata.linkmessenger.com'
         self.api = 'index.php/Admin/Api'
-        self.get_list = 'getAppError'
-        self.read_info = 'appErrorInfo'
-        self.date = str(datetime.date.today() - datetime.timedelta(8))
+        self.method_get = 'getAppError'
+        self.method_read = 'appErrorInfo'
+        self.date = str(datetime.date.today() - datetime.timedelta(4))
         self.version = 'V1.9.5 (11311) [正式版]'
         self.sproc = SubProcessBase()
-        self.get_ids_url = '/'.join([self.domain, self.api, self.get_list])
-        self.read_ids_url = '/'.join([self.domain, self.api, self.read_info])
+        self.get_ids_url = '/'.join([self.domain, self.api, self.method_get])
+        self.read_ids_url = '/'.join([self.domain, self.api, self.method_read])
         self.que = queue.Queue()
 
     def get_md5(self, date):
@@ -53,44 +53,37 @@ class GetCrashInfoFromServer(object):
 
         url_params = parse.urlencode(params).encode('utf-8')
 
-        get_url = '/'.join([self.domain, self.api, self.get_list])
-        read_url = '/'.join([self.domain, self.api, self.read_info])
+        print('get_url', self.get_ids_url)
+        print('read_url', self.read_ids_url)
 
-        print('get_url', get_url)
-        print('read_url', read_url)
-
-        list_temp = request.Request(
-            url=get_url,
+        list_params = request.Request(
+            url=self.get_ids_url,
             data=url_params
         )
-        data = request.urlopen(list_temp).read()
+        data = request.urlopen(list_params).read()
 
         url_row = [parse.urlencode({'row': x})for x in eval(data)]
-        # url_row = [lambda x: parse.urlencode({'row': x}).encode('utf-8'), eval(data)] #useless??
-        # print(url_row)
         for i in url_row:
-            print(read_url + '?' + i)
-            _data = request.urlopen(read_url + '?' + i).read()
-        #
-        #     self.que.put(_data)
-            print(_data.decode())
+        	print(i)
+            # yield i
+
+    def request_data(self):
+
+        print(read_url + '?' + i)
+        _data = request.urlopen(read_url + '?' + i).read()
+        self.que.put(_data)
+        print(_data.decode())
         #     print(_temp)
         #     break
         # print(self.que.get())
-
-
-
 
         # id_list = self.sproc.sub_procs_run(cmd='curl %s' % get_url)
         # id_list = eval(id_list)
         # print('id_list', type(id_list), id_list)
   #       for i in id_list:
-		# crash_data = self.sproc.sub_procs_run('curl %s' % read_url)
-
-
+        # crash_data = self.sproc.sub_procs_run('curl %s' % read_url)
 
 
 if __name__ == '__main__':
     gcis = GetCrashInfoFromServer()
-    gcis.splicing_url()
-
+    print(gcis.splicing_url())
