@@ -42,18 +42,19 @@ import sqlite3
 
 
 def sqlite_connect():
-    conn = sqlite3.connect('db/crash_reason_count.sqlite')
+    conn = sqlite3.connect(':memory:')
+    # conn = sqlite3.connect('db/crash_reason_count.sqlite')
     if conn:
         print('crash_reason_count.db connected . . .')
         cursor = conn.cursor()
         if cursor:
             print('crash_reason_count.db opened . . .')
-            return cursor, conn
+            return conn, cursor
         else:
             return False
 
 
-def create_base_table(conn, cursor):
+def create_base_table(conn, cursor, end=True):
     cursor.execute('''CREATE TABLE statistics
         (ID INTEGER PRIMARY KEY AUTOINCREMENT,
         FIXED INT NOT NULL,
@@ -63,16 +64,22 @@ def create_base_table(conn, cursor):
         LAST_VERSION TEXT NOT NULL,
         LAST_UDPATE TEXT NOT NULL);''')
     print('table statistics create successfully . . .')
-    conn.close()
+    if end:
+        cursor.close()
+        conn.close()
 
-def create_backtrack(conn, cursor, **kwargs):
+
+def create_backtrack(conn, cursor, end=True, **kwargs):
     cursor.execute(
         'CREATE TABLE backtrack_%d(ID INT PRIMARY KEY,TRAC_ID TEXT NOT NULL);' % id)
     # cursor.commit()
     print('table of %s create successfully . . .' % id)
-    conn.close()
+    if end:
+        cursor.close()
+        conn.close()
 
-def insert(conn, cursor, **kwargs):
+
+def insert(conn, cursor, end=True, **kwargs):
     inse = "INSERT INTO %s VALUES(NULL, %d, %d, '%s', '%s', '%s', '%s')" % (
         kwargs['table_name'],
         kwargs['status'],
@@ -82,10 +89,22 @@ def insert(conn, cursor, **kwargs):
         kwargs['lv'],
         kwargs['uptime'])
     cursor.execute(inse)
-    conn.commit()
-    conn.close()
 
-def update(conn, cursor, **kwargs):
+    if end:
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+
+def update(conn, cursor, end=True, **kwargs):
+    """
+
+    :param conn:
+    :param cursor:
+    :param end:
+    :param kwargs:
+    :return:
+    """
     colums = ''
     cols = len(kwargs['colums'])
     print(cols)
@@ -102,58 +121,67 @@ def update(conn, cursor, **kwargs):
         kwargs['table_name'], colums)
     # print(udpate_sql)
     cursor.execute(udpate_sql)
-    conn.commit()
-    conn.close()
+    if end:
+        cursor.close()
+        conn.commit()
+        conn.close()
 
-def search(conn, cursor, **kwargs):
+
+def search(conn, cursor, end=True, **kwargs):
+    """
+
+    :param conn: sqlite3 connection
+    :param cursor: Object sqlite3
+    :param kwargs: Included arg1: colum, arg2: table_name, arg3:condition(start with {where})
+    :return: Tuple type return. use index to get data.
+    """
     search_sql = 'SELECT %s FROM %s %s' % (
         kwargs['colum'],
         kwargs['table_name'],
         kwargs['condition'])
 
     resu = cursor.execute(search_sql)
-    for line in resu:
-        print(line)
-    conn.close()
+    print(resu.fetchall())
+    if end:
+        cursor.close()
+        conn.close()
 
 
-# class SQLOperation(object):
-#     def __init__:
+# create_backtrack(conn, 10)
 
 
+conn, cursor = sqlite_connect()
+print(type(conn), type(cursor))
+create_base_table(conn, cursor, end=False)
+for i in range(0, 3000):
+    print(i)
+    insert(
+        end=False,
+        conn=conn,
+        cursor=cursor,
+        status=0,
+        count=i + 100,
+        content='teoisjoiwejof',
+        fv='first version',
+        lv='last version',
+        uptime=sqlite3.datetime.datetime.now(),
+        table_name='statistics')
+search(conn, cursor, False, colum='*', table_name='statistics', condition='where id = 2000')
+cursor.close()
+conn.commit()
+conn.close()
 
-if __name__ == '__main__':
-    cursor, conn = connect()
-    if cursor:
-        # create_base_table(cursor)
+# search(
+#     cursor=cursor,
+#     colum='*',
+#     table_name='statistics',
+#     condition='where ID = 201724')
 
-        # create_backtrack(conn, 10)
-        # for i in range(0, 200000):
-        #     print(i)
-        #     insert(
-        #         cursor=cursor,
-        #         status=0,
-        #         count=i + 100,
-        #         content='teoisjoiwejof',
-        #         fv='first version',
-        #         lv='last version',
-        #         uptime='today',
-        #         table_name='statistics')
-
-        search(
-            cursor=cursor,
-            colum= '*',
-            table_name='statistics',
-            condition='where ID = 201724')
-
-        # update(cursor, table_name='statistics',
-        #     colums=['COUNT',
-        #     'LAST_UDPATE',
-        #     'FIRST_VERSION'],
-        #     volues=['555555',
-        #     "update_date_2",
-        #     "first_version_udpate_2"],
-        #     condition='where id = 3')
-
-    conn.commit()
-    conn.close()
+# update(cursor, table_name='statistics',
+#     colums=['COUNT',
+#     'LAST_UDPATE',
+#     'FIRST_VERSION'],
+#     volues=['555555',
+#     "update_date_2",
+#     "first_version_udpate_2"],
+#     condition='where id = 3')
