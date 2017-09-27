@@ -55,9 +55,7 @@ class TaskSchedule(object):
 
     def __init__(self):
         super(TaskSchedule, self).__init__()
-
         self.packages_name = ['WeGamers', 'GameLive', 'Link']
-
         self.crash_data_clear = list()
         self.crash_info_env = list()
         self.crash_info_stacktrac = list()
@@ -67,12 +65,8 @@ class TaskSchedule(object):
         self.parser_wait_raw = str()
 
         self.parser = CrashParser(
-            cleardata=self.crash_data_clear,
-            stacktrac=self.crash_info_stacktrac,
-            atospase=self.crash_info_parse,
             packagenames=self.packages_name,
-            curname=self.current_app_name,
-            parser_wait_raw=self.parser_wait_raw
+            rawdata=self.parser_wait_raw
         )
         self.dSYM = DownloadDSYM()
         self.parser.get_crash_info(pkgname=self.packages_name)
@@ -102,7 +96,7 @@ class TaskSchedule(object):
 
 if __name__ == '__main__':
     process = []
-    process.append(start_service)
+    # process.append(start_service)
     ts = TaskSchedule()
     ts.start_service()
     ts.dSYM_need_not()

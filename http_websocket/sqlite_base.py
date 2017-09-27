@@ -37,11 +37,17 @@
 #                      o _|_           __
 #                      |  |      (__| (__) (__(_
 #                                   |
-
+import random
+import time
+import datetime
 import sqlite3
 
 
 def sqlite_connect():
+    """
+
+    :return: Object sqlite Connection
+    """
     conn = sqlite3.connect(':memory:')
     # conn = sqlite3.connect('db/crash_reason_count.sqlite')
     if conn:
@@ -55,21 +61,36 @@ def sqlite_connect():
 
 
 def create_base_table(conn, cursor, end=True):
+    """
+
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :return: Nothing to return
+    """
     cursor.execute('''CREATE TABLE statistics
         (ID INTEGER PRIMARY KEY AUTOINCREMENT,
         FIXED INT NOT NULL,
         COUNT INT NOT NULL,
         CONTENT TEXT NOT NULL,
         FIRST_VERSION TEXT NOT NULL,
-        LAST_VERSION TEXT NOT NULL,
-        LAST_UDPATE TEXT NOT NULL);''')
+        LAST_VERSION TEXT,
+        LAST_UPDATE TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP));''')
     print('table statistics create successfully . . .')
     if end:
         cursor.close()
         conn.close()
 
 
-def create_backtrack(conn, cursor, end=True, **kwargs):
+def create_backtrack_table(conn, cursor, end=True, **kwargs):
+    """
+
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :param kwargs: Which id want to used to create the backtrack table. connect with statistics table's id.
+    :return: Nothing to return
+    """
     cursor.execute(
         'CREATE TABLE backtrack_%d(ID INT PRIMARY KEY,TRAC_ID TEXT NOT NULL);' % id)
     # cursor.commit()
@@ -80,14 +101,22 @@ def create_backtrack(conn, cursor, end=True, **kwargs):
 
 
 def insert(conn, cursor, end=True, **kwargs):
-    inse = "INSERT INTO %s VALUES(NULL, %d, %d, '%s', '%s', '%s', '%s')" % (
+    """
+
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :param kwargs: Included arg1: table_name, arg2: count, arg3:content, arg4:fv, arg5:lv, arg6:uptime
+    :return:
+    """
+    inse = "INSERT INTO %s VALUES(NULL, %d, %d, '%s', '%s', '%s'," \
+           "str(int(time.mktime(datetime.datetime.now().timetuple()))))" % (
         kwargs['table_name'],
-        kwargs['status'],
+        kwargs['fixed'],
         kwargs['count'],
         kwargs['content'],
         kwargs['fv'],
-        kwargs['lv'],
-        kwargs['uptime'])
+        kwargs['lv'])
     cursor.execute(inse)
 
     if end:
@@ -107,20 +136,17 @@ def update(conn, cursor, end=True, **kwargs):
     """
     colums = ''
     cols = len(kwargs['colums'])
-    print(cols)
     if cols > 1:
         for i in range(cols):
-            if i == cols - 1:
-                colums += ''.join([kwargs['colums'][i], '=', "\'", kwargs['volues'][i], "\'"])
-                break
-            colums += ''.join([kwargs['colums'][i], '=', "\'", kwargs['volues'][i], "\'", ', '])
+            colums += ''.join([kwargs['colums'][i], '=', "\'", kwargs['values'][i], "\'", ', '])
+        colums += ''.join(['LAST_UPDATE', '=', "\'", str(int(time.mktime(datetime.datetime.now().timetuple()))), "\'"])
         if kwargs['condition']:
             colums += kwargs['condition']
 
     udpate_sql = "UPDATE %s SET %s" % (
         kwargs['table_name'], colums)
-    # print(udpate_sql)
     cursor.execute(udpate_sql)
+
     if end:
         cursor.close()
         conn.commit()
@@ -130,58 +156,79 @@ def update(conn, cursor, end=True, **kwargs):
 def search(conn, cursor, end=True, **kwargs):
     """
 
+    :param end:
     :param conn: sqlite3 connection
     :param cursor: Object sqlite3
     :param kwargs: Included arg1: colum, arg2: table_name, arg3:condition(start with {where})
-    :return: Tuple type return. use index to get data.
+    :return: List type return. use index to get line's tuple. Then use index of the tuple to get aim data.
     """
     search_sql = 'SELECT %s FROM %s %s' % (
-        kwargs['colum'],
+        kwargs['colums'],
         kwargs['table_name'],
         kwargs['condition'])
 
-    resu = cursor.execute(search_sql)
-    print(resu.fetchall())
+    result = cursor.execute(search_sql).fetchall()
+
     if end:
         cursor.close()
         conn.close()
+        return result
+
+    return result
 
 
-# create_backtrack(conn, 10)
+def random_c():
+    contents = {
+        1: 'IOWJhdfthtyjtrukjfgnFWF',
+        2: 'OBIWErtsrjtyjgesrgertsegthJQKWF',
+        3: 'OOQWFrthdrtWEF6845ADFG',
+        4: 'OUIBPWthhgrynwegfeOEQORJ',
+        5: 'JXCVPOawefhrthQEWF',
+        6: 'jaUWENcfawefagnFIAWE',
+        7: '6546AWdfgncfghndfghE1F35',
+        8: 'IOVJAWOEKFawerfgawefNALWF3',
+        9: '126B54cgndrthsertghdfSER',
+        10: '68465ghdfghfg45416',
+        11: 'oaiwejfjndfghdrtoi651',
+        12: 'wejfoi6WFEGG',
+        13: 'oaiwejfoi651'
+    }
+
+    re = random.randint(1, 13)
+
+    return contents[re]
+
+# create_backtrack_table(conn, 10)
 
 
 conn, cursor = sqlite_connect()
 print(type(conn), type(cursor))
 create_base_table(conn, cursor, end=False)
-for i in range(0, 3000):
-    print(i)
+for i in range(0, 600):
+    # print(i)
     insert(
         end=False,
         conn=conn,
         cursor=cursor,
         status=0,
         count=i + 100,
-        content='teoisjoiwejof',
+        content=random_c(),
         fv='first version',
         lv='last version',
-        uptime=sqlite3.datetime.datetime.now(),
         table_name='statistics')
-search(conn, cursor, False, colum='*', table_name='statistics', condition='where id = 2000')
+
+update(conn, cursor, end=False, table_name='statistics', colums=['COUNT', 'CONTENT'], values=['100', 'test'], condition='where id = 10')
+
+_unknow_type = 'EKFawerfgaw'
+cond = "where CONTENT LIKE \'%%%s%%\'" % _unknow_type
+_target = search(conn,
+                 cursor,
+                 end=False,
+                 colums='ID, CONTENT',
+                 table_name='statistics',
+                 condition=cond)
+print('target ', _target)
+
 cursor.close()
 conn.commit()
 conn.close()
-
-# search(
-#     cursor=cursor,
-#     colum='*',
-#     table_name='statistics',
-#     condition='where ID = 201724')
-
-# update(cursor, table_name='statistics',
-#     colums=['COUNT',
-#     'LAST_UDPATE',
-#     'FIRST_VERSION'],
-#     volues=['555555',
-#     "update_date_2",
-#     "first_version_udpate_2"],
-#     condition='where id = 3')

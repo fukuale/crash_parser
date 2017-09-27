@@ -19,7 +19,10 @@ from urllib import request
 import datetime
 import os
 import queue
-from subproc import SubProcessBase
+try:
+    from subproc import SubProcessBase
+except ModuleNotFoundError as e:
+    from http_websocket.subproc import SubProcessBase
 
 
 class GetCrashInfoFromServer(object):
@@ -61,7 +64,7 @@ class GetCrashInfoFromServer(object):
 
         return eval(task_list)
 
-    def splicing_url(self):
+    def get_crash_log(self):
         task_ids = self.get_task_list()
         url = ''
         for i in task_ids:
@@ -75,10 +78,10 @@ class GetCrashInfoFromServer(object):
                 data=parm_encode
             )
 
-            url = request.urlopen(crash_page).read()
+            url = request.urlopen(crash_page).read().decode()
 
     def run(self):
-        for i in self.splicing_url():
+        for i in self.get_crash_log():
             print(i)
 
 
