@@ -77,7 +77,7 @@ class Smililarity_Compute(object):
         """
         a = ''
         _re_compare = [a for i in compare if i in be_compare]
-        _match_percent = float(len(_re_compare) / len(compare) + len(be_compare) / 2)
+        _match_percent = float(len(_re_compare) / ((len(compare) + len(be_compare)) / 2))
         return _match_percent
 
     def hex_remove(self, objectin):
@@ -116,27 +116,27 @@ class Smililarity_Compute(object):
         # Get wait compute data ready to match in sql.
         alpha_str = self.variable_remove(self.wait_compute_data)
         for k, v in enumerate(alpha_str):
-            if v.__len__() < 3:
-                del alpha_str[k]
+            if v.__len__() > 3:
+                _first_match = sqlite_base.search(conn, cursor,
+                                                  end=False,
+                                                  columns='ROWID, COUNT, CONTENT',
+                                                  table_name='statistics',
+                                                  condition="where CONTENT LIKE \'%%%s%%\'" % alpha_str[0])
 
-        # If first word could be matched in sql, Return all matched data. If not insert this case.
-        _first_match = sqlite_base.search(conn, cursor,
-                                          end=False,
-                                          columns='ID, COUNT, CONTENT',
-                                          table_name='statistics',
-                                          condition="where CONTENT LIKE \'%%%s%%\'" % alpha_str[0])
         if not _first_match:
-            sqlite_base.insert(conn, cursor,
-                               end=False,
-                               table_name='statistics',
-                               fixed=0,
-                               count=1,
-                               content=self.wait_compute_data,
-                               fv=self.ver_info,
-                               lv=self.ver_info)
-
-        # Remove hex item from wait compare string list
-        _compare_only_str = self.hex_remove(self.wait_compute_data)
+            _row_id = sqlite_base.insert(conn, cursor,
+                                         end=False,
+                                         table_name='statistics',
+                                         fixed=0,
+                                         count=1,
+                                         content=self.wait_compute_data,
+                                         fv=self.ver_info,
+                                         lv=self.ver_info)
+            if _row_id:
+                sqlite_base.insert(conn, cursor,
+                                   end=False,
+                                   table_name='backtrack_%d' % _row_id,
+                                   trac_id=self.trac_id)
 
         # Similarity compute logic
         if _first_match:
@@ -148,7 +148,7 @@ class Smililarity_Compute(object):
                 _sql_only_str = self.variable_remove(_target)
 
                 # Compare two list similarity percentage.
-                _percent_of.append((i[0], i[1], i[2], self.compute_similarity(_compare_only_str, _sql_only_str)))
+                _percent_of.append((i[0], i[1], i[2], self.compute_similarity(alpha_str, _sql_only_str)))
             # Sorted by percentage.
             _percent_of = sorted(_percent_of, key=lambda x: (x[-1]))
             print('_percent_of', _percent_of)
@@ -158,30 +158,30 @@ class Smililarity_Compute(object):
             if 1 == _percent_of[-1][-1]:
                 sqlite_base.update(conn, cursor,
                                    end=False,
+                                   table_name='statistics',
                                    columns=['COUNT', 'LAST_VERSION'],
-                                   values=[_percent_of[-1][-2], self.ver_info],
+                                   values=[_percent_of[-1][1] + 1, self.ver_info],
                                    condition='where ID = %d' % _percent_of[-1][0])
-            else:
+                print('100%')
                 sqlite_base.insert(conn, cursor,
                                    end=False,
-                                   table_name='statistics',
-                                   fixed=0,
-                                   count=1,
-                                   content=_percent_of[-1][-2],
-                                   fv=self.ver_info,
-                                   lv=self.ver_info)
-            # Insert trac_id to the linked table.
-            sqlite_base.insert(conn, cursor,
-                               end=False,
-                               table_name='backtrack_%d' % _percent_of[-1][0],
-                               trac_id=self.trac_id)
-
-            sqlite_base.update(conn, cursor,
-                               end=False,
-                               table_name='statistics',
-                               columns=['COUNT'],
-                               values=[_percent_of[-1][1] + 1],
-                               condition='where ID = %d' % _percent_of[-1][1])
+                                   table_name='backtrack_%d' % _percent_of[-1][0],
+                                   trac_id=self.trac_id)
+            else:
+                _row_id = sqlite_base.insert(conn, cursor,
+                                             end=False,
+                                             table_name='statistics',
+                                             fixed=0,
+                                             count=1,
+                                             content=self.wait_compute_data,
+                                             fv=self.ver_info,
+                                             lv=self.ver_info)
+                print('percentage insert ', _row_id)
+                if _row_id:
+                    sqlite_base.insert(conn, cursor,
+                                       end=False,
+                                       table_name='backtrack_%d' % _row_id,
+                                       trac_id=self.trac_id)
         if conn:
             if cursor:
                 cursor.close()

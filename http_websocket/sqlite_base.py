@@ -93,7 +93,6 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     """
     cursor.execute(
         'CREATE TABLE backtrack_%s(ID INTEGER PRIMARY KEY AUTOINCREMENT,TRAC_ID TEXT NOT NULL);' % kwargs['id'])
-    # cursor.commit()
     print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
@@ -107,6 +106,7 @@ def create_tables(conn, cursor, tablename, end=True, create=True):
     else:
         if create and tablename.startswith('backtrack_'):
             create_backtrack_table(conn, cursor, end=end, id=tablename.split('_')[-1])
+            return True
         elif create and tablename == 'statistics':
             create_base_table(conn, cursor, end=end)
             return True
@@ -126,20 +126,25 @@ def insert(conn, cursor, end=True, **kwargs):
     inse = str()
     if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
-            inse = "INSERT INTO %s VALUES(NULL, %d, %d, "'%s'", '%s', '%s','%s')" % (
-                kwargs['table_name'], kwargs['fixed'], kwargs['count'], kwargs['content'], kwargs['fv'], kwargs['lv'],
-                str(int(time.mktime(datetime.datetime.now().timetuple()))))
+            _inse_cmd_format = "INSERT INTO statistics(FIXED, COUNT, CONTENT, FIRST_VERSION, LAST_VERSION, LAST_UPDATE) values(?,?,?,?,?,?)"
+            cursor.execute(_inse_cmd_format,
+                           (kwargs['fixed'], kwargs['count'], kwargs['content'], kwargs['fv'], kwargs['lv'],
+                            str(int(time.mktime(datetime.datetime.now().timetuple())))))
+
         elif kwargs['table_name'].startswith('backtrack_'):
-            inse = "INSERT INTO %s VALUES(NULL, '%s'," \
-                   "str(int(time.mktime(datetime.datetime.now().timetuple()))))" % (
-                       kwargs['table_name'],
-                       kwargs['trac_id'])
+            _inse_cmd_format_ = "INSERT INTO %s(TRAC_ID) values(?)" % kwargs['table_name']
+            print('inse_cmd_format', _inse_cmd_format_, kwargs['trac_id'])
+            cursor.execute(_inse_cmd_format_, (kwargs['trac_id'], ))
+
+    _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
     cursor.execute(inse)
     conn.commit()
     if end:
         cursor.close()
         conn.commit()
         conn.close()
+
+    return _row_id
 
 
 def update(conn, cursor, end=True, **kwargs):
@@ -151,18 +156,13 @@ def update(conn, cursor, end=True, **kwargs):
     :param kwargs:
     :return:
     """
-    columns = ''
-    cols = len(kwargs['columns'])
-    if cols > 1:
-        for i in range(cols):
-            columns += ''.join([str(kwargs['columns'][i]), '=', "\'", str(kwargs['values'][i]), "\'", ', '])
-        columns += ''.join(['LAST_UPDATE', '=', "\'", str(int(time.mktime(datetime.datetime.now().timetuple()))), "\'"])
-    elif cols == 1:
-        columns += ''.join([str(kwargs['columns'][0]), '=', "\'", str(kwargs['values'][0]), "\'"])
+    udpate_sql = 'UPDATE %s SET ' % kwargs['table_name']
+    for _index, _value in enumerate(kwargs['columns']):
+        if _index >= 1:
+            udpate_sql += ', '
+        udpate_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
+    udpate_sql += kwargs['condition']
 
-    if 'condition' in list(kwargs.keys()):
-        columns += kwargs['condition']
-    udpate_sql = "UPDATE %s SET  %s " % (kwargs['table_name'], columns)
     cursor.execute(udpate_sql)
     conn.commit()
     if end:
@@ -198,6 +198,7 @@ def search(conn, cursor, end=True, **kwargs):
     except sqlite3.OperationalError as e:
         # TODO : WRITE LOG
         return False
+
 
 def random_c():
     contents = {
@@ -239,23 +240,26 @@ def random_c():
 #         lv='last version',
 #         fixed=0,
 #         table_name='statistics')
-# #
+
 # update(conn, cursor,
 #        end=False,
 #        table_name='statistics',
-#        columns=['COUNT', 'CONTENT'],
-#        values=['100', 'test'],
-#        condition='where id = 35')
+#        columns=['COUNT', 'CONTENT', 'LAST_VERSION'],
+#        values=['99999', 'ghmdghmd', 'WIEF'],
+# columns=['COUNT'],
+# values=['99999'],
+# condition='')
 #
 # _unknow_type = 'EKFawerfgaw'
 # cond = "where CONTENT LIKE \'%%%s%%\'" % _unknow_type
 # _target = search(conn,
 #                  cursor,
 #                  end=False,
-#                  columns='ID, CONTENT',
+#                  columns='*',
 #                  table_name='statistics',
-#                  condition=cond)
-# print('target ', _target)
+#                  condition='')
+# for i in _target:
+#     print('search', i)
 #
 # cursor.close()
 # conn.commit()
