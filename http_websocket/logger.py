@@ -39,16 +39,16 @@ class Logger:
         return sys._getframe().f_back.f_code.co_name
 
     def debug(self, message):
-        self.logger.debug(message)
+        self.logger.debug(message.encode('utf-8'))
 
     def info(self, message):
-        self.logger.info(message)
+        self.logger.info(message.encode('utf-8'))
 
     def warn(self, message):
-        self.logger.warning(message)
+        self.logger.warning(message.encode('utf-8'))
 
     def error(self, message):
-        self.logger.error(message)
+        self.logger.error(message.encode('utf-8'))
 
     def cri(self, message):
-        self.logger.critical(message)
+        self.logger.critical(message.encode('utf-8'))

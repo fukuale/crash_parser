@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 # Author = 'Vincent FUNG'
 # Create = '2017/09/21'
 #                       ::
@@ -39,21 +40,20 @@
 #                                   |
 
 import os, time
-import subproc
+
+try:
+    import subproc
+except ModuleNotFoundError as e:
+    import http_websocket.subproc
 
 domain = 'http://10.0.2.188'
 wegamers_folder = 'GameIM'
+gamelive_folder = 'GameLive'
 wegamer = 'WeGamers'
 gamlive = 'GameLive'
-gamelive_folder = 'GameLive'
 appstore = 'AppStore正式发布/dsYm'
 dev = 'dev/DSYM'
 platform = 'ios'
-appstore_filename = 'WeGamers.app.11311.dSYM.zip'
-filename = 'WeGamers_Enterprise_v2.0.0(r11223)-dSYM.zip'
-live_filename = 'GameLive_Enterprise_v1.0.0(r271)-dSYM.zip'
-file_ext = '.DSYM'
-app_core_folder = 'Contents/Resources/DWARF'
 
 
 class DownloadDSYM(object):
@@ -64,7 +64,14 @@ class DownloadDSYM(object):
             os.path.expanduser('~'), 'Downloads')
 
     def init_dSYM(self, build_id, version_number, version_type, product):
-
+        """
+        Call all method to download dSYM file and rename it after unzipping.
+        :param build_id: String object. SVN code. eg.11311
+        :param version_number: String object. eg.1.9.5
+        :param version_type: String object. Default appstore
+        :param product: String object. Default wegamers
+        :return: String object. The dSYM absolute folder address.
+        """
         _dSYM_name = '%s_%s.DSYM' % (product, build_id)
         _abs_dSYM = os.path.join(self.default_download_folder, _dSYM_name)
         # dSYM file download already?
@@ -111,39 +118,72 @@ class DownloadDSYM(object):
                 else:
                     return False
 
-    # Return dSYM file download link.
-
-    def make_httpdownload_addr(self, build_id, version_number,
-                               version_type='appsotre', product='wegamers'):
+    def make_httpdownload_addr(self, build_id, version_number, version_type='appsotre', product='wegamers'):
+        """
+        Splicing version and application type to call corresponding method get download address.
+        :param build_id: String object. SVN code. eg.11311
+        :param version_number: String object. eg.1.9.5
+        :param version_type: String object. Default appstore
+        :param product: String object. Default wegamers
+        :return: getattr call corresponding method. The corresponding method return a download link.
+        """
         method_name = '%s_%s' % (product.lower(), version_type)
         print(method_name)
         method = getattr(self, method_name, lambda: 'nothing')
 
         return method(build_id=build_id, version_number=version_number, version_type=version_type, product=product)
 
-    # merge download link for wegamers_appstore version.
-
     def wegamers_appstore(self, **kwargs):
+        """
+        WeGamers AppStore dSYM download link maker
+        :param kwargs: Accept build_id
+        :return: String object. download link
+        """
         self.filename = 'WeGamers.app.%s.dSYM.zip' % kwargs['build_id']
         return os.path.join(
             domain, wegamers_folder, platform, appstore, self.filename)
 
-    # merge download link for wegamers_dev version.
+    # merge download link for wegamers_appstore version.
 
     def wegamers_dev(self, **kwargs):
+        """
+        WeGamers Develop dSYM download link maker
+        :param kwargs: Accept 1)version_number, 2)build_id
+        :return: String object. download link
+        """
         print(kwargs)
         self.filename = 'WeGamers_Enterprise_v%s\(r%s\)-dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
             domain, wegamers_folder, platform, dev, self.filename)
 
-    # merge download link for gamelive_appstore version.
+    # merge download link for wegamers_dev version.
+
     def gamelive_appstore(self, build_id):
+        """
+        Not publish yet.
+        :param build_id:
+        :return:
+        """
         pass
 
-    # merge download link for gamelive_dev version.
+    # merge download link for gamelive_appstore version.
     def gamelive_dev(self, **kwargs):
+        """
+        GameLive Develop dSYM download link maker
+        :param kwargs: Accept 1)version_number, 2)build_id
+        :return: String object. download link
+        """
         self.filename = 'GameLive_Enterprise_v%s\(r%s\)-dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
             domain, gamelive_folder, platform, dev, self.filename)
+
+        # merge download link for gamelive_dev version.
+
+
+if __name__ == '__main__':
+    data = ['1.9.5', '11311', 'appstore']
+    dd = DownloadDSYM()
+    res = dd.init_dSYM(version_number=data[0], build_id=data[1], version_type=data[-1], product='WeGamers')
+    print(res)

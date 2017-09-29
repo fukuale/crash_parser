@@ -1,18 +1,6 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/09/24'
 
-'''
-http://gdata.linkmessenger.com/index.php/Admin/Api/getAppError?day=2017-09-20&ver=V1.9.4+%2811297%29+%5B%E6%AD%A3%E5%BC%8F%E7%89%88%5D&sign=a484b003f9a87cad9ac03390f5201b92
-$skey = '8HTm)NZ[K=I0Ju!L%a@Ua!#g29ZPFgm9';
-        $sign = I('sign');
-        $day = I('day');
-        if ($sign != md5($skey.$day)) {
-            exit();
-        }
-
-http://gdata.linkmessenger.com/index.php/Admin/Api/appErrorInfo?row=if-0-1505981280967
-
-'''
 import hashlib
 from urllib import parse
 from urllib import request
@@ -24,18 +12,19 @@ try:
 except ModuleNotFoundError as e:
     from http_websocket.subproc import SubProcessBase
 
+yesteday = str(datetime.date.today() - datetime.timedelta(1))
 
 class GetCrashInfoFromServer(object):
     """docstring for GetCrashInfoFromServer"""
 
-    def __init__(self):
+    def __init__(self, date=yesteday):
         super(GetCrashInfoFromServer, self).__init__()
         self.sec_key = '8HTm)NZ[K=I0Ju!L%a@Ua!#g29ZPFgm9'
         self.domain = 'http://gdata.linkmessenger.com'
         self.api = 'index.php/Admin/Api'
         self.method_get = 'getAppError'
         self.method_read = 'appErrorInfo'
-        self.date = str(datetime.date.today() - datetime.timedelta(4))
+        self.date = date
         self.version = 'V1.9.5 (11311) [正式版]'
         self.get_ids_url = '/'.join([self.domain, self.api, self.method_get])
         self.read_ids_url = '/'.join([self.domain, self.api, self.method_read])
@@ -44,10 +33,19 @@ class GetCrashInfoFromServer(object):
         self.sproc = SubProcessBase()
 
     def get_md5(self, date):
+        """
+        Compute sign key to access crash log API
+        :param date: '%Y-%m-%d' format string. Default is yesterday
+        :return: sign key, String object
+        """
         self.md5.update((self.sec_key + str(date)).encode())
         return self.md5.hexdigest().lower()
 
     def get_task_list(self):
+        """
+        Get trac_id from web API
+        :return: trac_id, List object.
+        """
         params = {
             'day': self.date,
             'ver': self.version,
@@ -65,10 +63,14 @@ class GetCrashInfoFromServer(object):
         return eval(task_list)
 
     def get_crash_log(self):
+        """
+        Get aim trac_id's content from web API.
+        :return: Crash log information. Bytes object
+        """
         task_ids = self.get_task_list()
-        url = ''
+        crash_content = ''
         for i in task_ids:
-            yield url
+            yield crash_content
             param = {'row': i}
 
             parm_encode = parse.urlencode(param).encode('utf-8')
@@ -78,7 +80,7 @@ class GetCrashInfoFromServer(object):
                 data=parm_encode
             )
 
-            url = request.urlopen(crash_page).read().decode()
+            crash_content = request.urlopen(crash_page).read()
 
     def run(self):
         for i in self.get_crash_log():

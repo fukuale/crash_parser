@@ -92,12 +92,26 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     :return: Nothing to return
     """
     cursor.execute(
-        'CREATE TABLE backtrack_%d(ID INT PRIMARY KEY,TRAC_ID TEXT NOT NULL);' % id)
+        'CREATE TABLE backtrack_%s(ID INTEGER PRIMARY KEY AUTOINCREMENT,TRAC_ID TEXT NOT NULL);' % kwargs['id'])
     # cursor.commit()
-    print('table of %s create successfully . . .' % id)
+    print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
         conn.close()
+
+
+def create_tables(conn, cursor, tablename, end=True, create=True):
+    exist = "SELECT COUNT(*) FROM sqlite_master where type='table' and name='%s'" % tablename
+    if cursor.execute(exist).fetchall()[0][0] == 1:
+        return True
+    else:
+        if create and tablename.startswith('backtrack_'):
+            create_backtrack_table(conn, cursor, end=end, id=tablename.split('_')[-1])
+        elif create and tablename == 'statistics':
+            create_base_table(conn, cursor, end=end)
+            return True
+        else:
+            return False
 
 
 def insert(conn, cursor, end=True, **kwargs):
@@ -109,16 +123,19 @@ def insert(conn, cursor, end=True, **kwargs):
     :param kwargs: Included arg1: table_name, arg2: count, arg3:content, arg4:fv, arg5:lv, arg6:uptime
     :return:
     """
-    inse = "INSERT INTO %s VALUES(NULL, %d, %d, '%s', '%s', '%s'," \
-           "str(int(time.mktime(datetime.datetime.now().timetuple()))))" % (
-        kwargs['table_name'],
-        kwargs['fixed'],
-        kwargs['count'],
-        kwargs['content'],
-        kwargs['fv'],
-        kwargs['lv'])
+    inse = str()
+    if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
+        if kwargs['table_name'] == 'statistics':
+            inse = "INSERT INTO %s VALUES(NULL, %d, %d, "'%s'", '%s', '%s','%s')" % (
+                kwargs['table_name'], kwargs['fixed'], kwargs['count'], kwargs['content'], kwargs['fv'], kwargs['lv'],
+                str(int(time.mktime(datetime.datetime.now().timetuple()))))
+        elif kwargs['table_name'].startswith('backtrack_'):
+            inse = "INSERT INTO %s VALUES(NULL, '%s'," \
+                   "str(int(time.mktime(datetime.datetime.now().timetuple()))))" % (
+                       kwargs['table_name'],
+                       kwargs['trac_id'])
     cursor.execute(inse)
-
+    conn.commit()
     if end:
         cursor.close()
         conn.commit()
@@ -134,19 +151,20 @@ def update(conn, cursor, end=True, **kwargs):
     :param kwargs:
     :return:
     """
-    colums = ''
-    cols = len(kwargs['colums'])
+    columns = ''
+    cols = len(kwargs['columns'])
     if cols > 1:
         for i in range(cols):
-            colums += ''.join([kwargs['colums'][i], '=', "\'", kwargs['values'][i], "\'", ', '])
-        colums += ''.join(['LAST_UPDATE', '=', "\'", str(int(time.mktime(datetime.datetime.now().timetuple()))), "\'"])
-        if kwargs['condition']:
-            colums += kwargs['condition']
+            columns += ''.join([str(kwargs['columns'][i]), '=', "\'", str(kwargs['values'][i]), "\'", ', '])
+        columns += ''.join(['LAST_UPDATE', '=', "\'", str(int(time.mktime(datetime.datetime.now().timetuple()))), "\'"])
+    elif cols == 1:
+        columns += ''.join([str(kwargs['columns'][0]), '=', "\'", str(kwargs['values'][0]), "\'"])
 
-    udpate_sql = "UPDATE %s SET %s" % (
-        kwargs['table_name'], colums)
+    if 'condition' in list(kwargs.keys()):
+        columns += kwargs['condition']
+    udpate_sql = "UPDATE %s SET  %s " % (kwargs['table_name'], columns)
     cursor.execute(udpate_sql)
-
+    conn.commit()
     if end:
         cursor.close()
         conn.commit()
@@ -160,22 +178,26 @@ def search(conn, cursor, end=True, **kwargs):
     :param conn: sqlite3 connection
     :param cursor: Object sqlite3
     :param kwargs: Included arg1: colum, arg2: table_name, arg3:condition(start with {where})
-    :return: List type return. use index to get line's tuple. Then use index of the tuple to get aim data.
+    :return: List type return. use index to get line's tuple. Then use index of the tuple to get aim data. OR BOOLEAN False.
     """
-    search_sql = 'SELECT %s FROM %s %s' % (
-        kwargs['colums'],
-        kwargs['table_name'],
-        kwargs['condition'])
 
-    result = cursor.execute(search_sql).fetchall()
+    try:
+        search_sql = 'SELECT %s FROM %s %s' % (
+            kwargs['columns'],
+            kwargs['table_name'],
+            kwargs['condition'])
 
-    if end:
-        cursor.close()
-        conn.close()
+        result = cursor.execute(search_sql).fetchall()
+
+        if end:
+            cursor.close()
+            conn.close()
+            return result
+
         return result
-
-    return result
-
+    except sqlite3.OperationalError as e:
+        # TODO : WRITE LOG
+        return False
 
 def random_c():
     contents = {
@@ -201,34 +223,40 @@ def random_c():
 # create_backtrack_table(conn, 10)
 
 
-conn, cursor = sqlite_connect()
-print(type(conn), type(cursor))
-create_base_table(conn, cursor, end=False)
-for i in range(0, 600):
-    # print(i)
-    insert(
-        end=False,
-        conn=conn,
-        cursor=cursor,
-        status=0,
-        count=i + 100,
-        content=random_c(),
-        fv='first version',
-        lv='last version',
-        table_name='statistics')
-
-update(conn, cursor, end=False, table_name='statistics', colums=['COUNT', 'CONTENT'], values=['100', 'test'], condition='where id = 10')
-
-_unknow_type = 'EKFawerfgaw'
-cond = "where CONTENT LIKE \'%%%s%%\'" % _unknow_type
-_target = search(conn,
-                 cursor,
-                 end=False,
-                 colums='ID, CONTENT',
-                 table_name='statistics',
-                 condition=cond)
-print('target ', _target)
-
-cursor.close()
-conn.commit()
-conn.close()
+# conn, cursor = sqlite_connect()
+# print(type(conn), type(cursor))
+# create_base_table(conn, cursor, end=False)
+# create_backtrack_table(conn, cursor, end=False, id='1')
+# for i in range(0, 20):
+#     insert(
+#         end=False,
+#         conn=conn,
+#         cursor=cursor,
+#         status=0,
+#         count=i + 100,
+#         content=random_c(),
+#         fv='first version',
+#         lv='last version',
+#         fixed=0,
+#         table_name='statistics')
+# #
+# update(conn, cursor,
+#        end=False,
+#        table_name='statistics',
+#        columns=['COUNT', 'CONTENT'],
+#        values=['100', 'test'],
+#        condition='where id = 35')
+#
+# _unknow_type = 'EKFawerfgaw'
+# cond = "where CONTENT LIKE \'%%%s%%\'" % _unknow_type
+# _target = search(conn,
+#                  cursor,
+#                  end=False,
+#                  columns='ID, CONTENT',
+#                  table_name='statistics',
+#                  condition=cond)
+# print('target ', _target)
+#
+# cursor.close()
+# conn.commit()
+# conn.close()
