@@ -156,7 +156,7 @@ class CrashParser:
 
             # Pick memory address
             line_id = _value[0]
-            line_id_raw = _value[1]
+            stacktrac_id = _value[1]
             produce_name_raw = _value[2]
             memory_addr = _value[3]
             base_addr = _value[4]
@@ -168,9 +168,10 @@ class CrashParser:
             print(atos_cmd)
             parse_result = self.proc.sub_procs_run(cmd=atos_cmd)
             result = parse_result.stdout.decode().replace('\n', '')
+            print('atos result ', result)
             # Replace result to finally data
             replace_data = '   '.join([
-                line_id_raw, produce_name_raw, memory_addr, offset, result])
+                stacktrac_id, produce_name_raw, memory_addr, offset, result])
             print('replace_data', 'target line', line_id, 'data:\n', replace_data)
             print('self.data_lines[line_id]', self.request_lines[line_id])
             self.request_lines[line_id] = '    ' + replace_data

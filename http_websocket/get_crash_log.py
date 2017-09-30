@@ -9,15 +9,17 @@ import os
 import queue
 try:
     from subproc import SubProcessBase
+    from parse_crash_log import CrashParser
 except ModuleNotFoundError as e:
     from http_websocket.subproc import SubProcessBase
+    from http_websocket.parse_crash_log import CrashParser
 
 yesteday = str(datetime.date.today() - datetime.timedelta(1))
 
 class GetCrashInfoFromServer(object):
     """docstring for GetCrashInfoFromServer"""
 
-    def __init__(self, date=yesteday):
+    def __init__(self, version, date=yesteday):
         super(GetCrashInfoFromServer, self).__init__()
         self.sec_key = '8HTm)NZ[K=I0Ju!L%a@Ua!#g29ZPFgm9'
         self.domain = 'http://gdata.linkmessenger.com'
@@ -25,7 +27,7 @@ class GetCrashInfoFromServer(object):
         self.method_get = 'getAppError'
         self.method_read = 'appErrorInfo'
         self.date = date
-        self.version = 'V1.9.5 (11311) [正式版]'
+        self.version = version
         self.get_ids_url = '/'.join([self.domain, self.api, self.method_get])
         self.read_ids_url = '/'.join([self.domain, self.api, self.method_read])
         self.que = queue.Queue()
@@ -87,5 +89,5 @@ class GetCrashInfoFromServer(object):
             print(i)
 
 
-gcsi = GetCrashInfoFromServer()
+gcsi = GetCrashInfoFromServer(version='V1.9.5 (11311) [正式版]')
 gcsi.run()

@@ -38,39 +38,40 @@
 #                      |  |      (__| (__) (__(_
 #                                   |
 
-import multiprocessing
-import gevent
 
-# from parser_crash_info import Crash_Parser
-# from init_dsym import DownloadDSYM
+import os
 
-from parse_crash_log import CrashParser
-from init_dsym import DownloadDSYM
-from subproc import SubProcessBase
-import tornado_parser_server
+try:
+    from parse_crash_log import CrashParser
+    from init_dsym import DownloadDSYM
+    from subproc import SubProcessBase
+    import tornado_parser_server
+except ModuleNotFoundError:
+    from http_websocket.parse_crash_log import CrashParser
+    from http_websocket.init_dsym import DownloadDSYM
+    from http_websocket.subproc import SubProcessBase
+    import http_websocket.tornado_parser_server
 
 
 class TaskSchedule(object):
-    """docstring for TaskSchedule"""
-
     def __init__(self):
         super(TaskSchedule, self).__init__()
-        self.packages_name = ['WeGamers', 'GameLive', 'Link']
-        self.crash_data_clear = list()
+        # Get configuration file, product name.
+        self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'conf')
+        self.conf_files = [z for a, b, x in os.walk(self.conf_dir) for z in x]
+        self.package_names = [os.path.splitext(x)[0] for x in self.conf_files if not x.startswith('_')]
+
+        # Variable type
         self.crash_info_env = list()
-        self.crash_info_stacktrac = list()
-        self.crash_info_parse = list()
         self.current_app_name = int()
         self.dSYM_abspath = str()
         self.parser_wait_raw = str()
 
-        self.parser = CrashParser(
-            packagenames=self.packages_name,
-            rawdata=self.parser_wait_raw
-        )
-        self.dSYM = DownloadDSYM()
-        self.parser.get_crash_info(pkgname=self.packages_name)
-        self.subproc = SubProcessBase()
+    def gen_version_list(self):
+        for k, v in enumerate(self.conf_files):
+            _v_list = open(os.path.join(self.conf_dir, self.conf_files)).readlines()
+            for i in _v_list:
+                    yield i,
 
     def dSYM_need_not(self):
         self.crash_info_env = self.parser.get_env_info()
@@ -78,7 +79,7 @@ class TaskSchedule(object):
         is_dSYM = self.dSYM.init_dSYM(build_id=self.crash_info_env[1],
                                       version_number=self.crash_info_env[0],
                                       version_type=self.crash_info_env[2],
-                                      product=self.packages_name[self.current_app_name]
+                                      product=self.package_names[self.current_app_name]
                                       )
         if is_dSYM:
             self.dSYM_abspath = is_dSYM
@@ -87,17 +88,22 @@ class TaskSchedule(object):
 
     def parse(self):
         self.parser.call_atos(dSYM_file=self.dSYM_abspath,
-                              product_name=self.packages_name[self.current_app_name],
+                              product_name=self.package_names[self.current_app_name],
                               proc=self.subproc)
 
     def start_service(self):
         tornado_parser_server.run()
+
+    def test(self):
+        print(self.conf_files)
+        print(self.package_names)
 
 
 if __name__ == '__main__':
     process = []
     # process.append(start_service)
     ts = TaskSchedule()
-    ts.start_service()
-    ts.dSYM_need_not()
-    ts.parse()
+    ts.test()
+    # ts.start_service()
+    # ts.dSYM_need_not()
+    # ts.parse()

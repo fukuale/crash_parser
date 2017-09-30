@@ -72,10 +72,10 @@ def create_base_table(conn, cursor, end=True):
         (ID INTEGER PRIMARY KEY AUTOINCREMENT,
         FIXED INT NOT NULL,
         COUNT INT NOT NULL,
-        CONTENT TEXT NOT NULL,
-        FIRST_VERSION TEXT NOT NULL,
-        LAST_VERSION TEXT,
-        LAST_UPDATE TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP));''')
+        CONTENT MESSAGE_TEXT NOT NULL,
+        FIRST_VERSION MESSAGE_TEXT NOT NULL,
+        LAST_VERSION MESSAGE_TEXT ,
+        LAST_UPDATE MESSAGE_TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP));''')
     print('table statistics create successfully . . .')
     if end:
         cursor.close()
@@ -92,7 +92,7 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     :return: Nothing to return
     """
     cursor.execute(
-        'CREATE TABLE backtrack_%s(ID INTEGER PRIMARY KEY AUTOINCREMENT,TRAC_ID TEXT NOT NULL);' % kwargs['id'])
+        'CREATE TABLE backtrack_%s(ID INTEGER PRIMARY KEY AUTOINCREMENT,TRAC_ID MESSAGE_TEXT NOT NULL,APPLICATION_LOCATE MESSAGE_TEXT);' % kwargs['id'])
     print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
