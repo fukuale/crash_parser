@@ -3,38 +3,31 @@
 
 import subprocess
 
-import sys
-
-import logger
-
+try:
+    import logger
+except ModuleNotFoundError:
+    import http_websocket.logger
 log = logger.Logger('runtimelog/r.log', 'SubProcessBase')
 
 
-def popen_judge(popen_obj, log_func_name, parameters):
-    try:
-        if popen_obj.returncode == 0 and popen_obj.stdout:
-            log.debug(' %-20s ]-[ Return: %s' %
-                      (log_func_name, popen_obj.stdout))
-        elif popen_obj.returncode != 0:
-            log.cri(
-                ' %-20s ]-[ System cmd execution err: %s, code:%d, parameters in: %s' % (
-                    log_func_name, popen_obj.stderr, popen_obj.returncode, parameters))
-        elif popen_obj.stderr.decode():
-            print('popen_obj.stdout', popen_obj.stdout)
-            print('popen_obj.stderr', popen_obj.stderr)
-            log.error(' %-20s ]-[ Mobile shell cmd execution err: %s' %
-                      (log_func_name, popen_obj.stderr))
-        elif not popen_obj.stdout.decode():
-            log.error(
-                ' %-20s ]-[ Mobile shell nothing to print out' % log_func_name)
+def popen_judge(popen_obj, method_name, parameters):
+
+    if popen_obj.returncode == 0:
+        if popen_obj.stdout and not popen_obj.stderr:
+            log.debug(' %-20s ]-[ Return: %s' % (method_name, popen_obj.stdout))
+            return popen_obj
         else:
-            log.error(
-                ' %-20s ]-[ Unexpected exception: %s, code:%d' %
-                (log_func_name, popen_obj.stderr.decode(), popen_obj.returncode))
-        return popen_obj
-    except UnicodeDecodeError:
-        log.cri(' %-20s ]-[ Result can not decode, check the resource data: %s ' %
-                (log_func_name, popen_obj))
+            return 1
+    elif popen_obj.returncode != 0 and popen_obj.stderr:
+        log.cri(
+            ' %-20s ]-[ System cmd execution err: %s, code:%d, incoming parameters: %s' % (
+                method_name, popen_obj.stderr, popen_obj.returncode, parameters))
+        return False
+    else:
+        log.error(
+            ' %-20s ]-[ Unexpected exception: %s, code:%d' %
+            (method_name, popen_obj.stderr.decode(), popen_obj.returncode))
+        return False
 
 
 class SubProcessBase:
@@ -44,7 +37,7 @@ class SubProcessBase:
 
     @staticmethod
     def sub_procs_run(**args):
-        _func_name = sys._getframe().f_code.co_name
+        _func_name = logger.get_function_name()
         log.debug(' %-20s ]-[ Parameters in: %s' % (_func_name, args))
         if args.__len__() == 1:
             _sub_result = subprocess.run(args['cmd'].encode(),
