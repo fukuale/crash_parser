@@ -62,6 +62,8 @@ class DownloadDSYM(object):
         self.proc = subproc.SubProcessBase()
         self.default_download_folder = os.path.join(
             os.path.expanduser('~'), 'Downloads')
+        self.zip_file = os.path.join(
+            self.default_download_folder, self.filename)
 
     def init_dSYM(self, build_id, version_number, version_type, product):
         """
@@ -74,51 +76,46 @@ class DownloadDSYM(object):
         """
         _dSYM_name = '%s_%s.DSYM' % (product, build_id)
         _abs_dSYM = os.path.join(self.default_download_folder, _dSYM_name)
-        # dSYM file download already?
+        # dSYM file already existing?
         if os.path.exists(_abs_dSYM):
             return _abs_dSYM  # return dSYM abspath
 
         else:
             # Call to get the download link
-            http_addr = self.make_httpdownload_addr(
-                build_id, version_number, version_type, product)
-            print(http_addr)
-            print(os.path.join(self.default_download_folder, self.filename))
-            # self.filename = self.filename.replace('(', '_').replace(')', '')
-            download_cmd = 'curl -o %s %s' % (os.path.join(self.default_download_folder, self.filename), http_addr)
-            print(download_cmd)
-            # download dSYM file
-            self.proc.sub_procs_run(cmd=download_cmd)
-            # invalid zip file? condition => 10MB
-            unzip_zip_cmd = 'unzip %s -d %s' % (
-                os.path.join(self.default_download_folder, self.filename),
-                self.default_download_folder)
-            print('unzip_zip_cmd', unzip_zip_cmd)
-            del_zip = 'rm -rf %s' % os.path.join(self.default_download_folder, self.filename)
-            self.filename = self.filename.replace('\\', '')
-            if os.path.getsize(
-                    os.path.join(
-                        self.default_download_folder, self.filename)) < 10240:
-                print('dSYM download failed !!!!!!!! ')
-                return False
-            else:
-                # unzip zip file to dSYM file
-                _unzip_result = self.proc.sub_procs_run(cmd=unzip_zip_cmd)
-                rm_temp_macosx = 'rm -rf %s' % os.path.join(self.default_download_folder, '__MACOSX/')
-                self.proc.sub_procs_run(cmd=del_zip)
-                self.proc.sub_procs_run(cmd=rm_temp_macosx)
-                grep_file = 'ls %s | grep %s.app' % (self.default_download_folder, product)
-                result = self.proc.sub_procs_run(cmd=grep_file).stdout.decode().split()[0]
-                os.rename(os.path.join(self.default_download_folder, result),
-                          _abs_dSYM)
-                # return code == 0 means unzip complete.
-                if _unzip_result.returncode == 0:
-                    # return dSYM adspath
-                    return _abs_dSYM
+            http_addr = self.make_http_download_addr(build_id, version_number, version_type, product)
+            if http_addr:
+                download_cmd = 'curl -o %s %s' % (self.zip_file, http_addr)
+                # Download file successfully.
+                download_res = self.proc.sub_procs_run(cmd=download_cmd)
+                if download_res:
+                    # Valid files when the file size is more than 20MB
+                    if os.path.getsize(os.path.join(self.zip_file)) > 20480:
+                        unzip_zip_cmd = 'unzip %s -d %s' % (
+                            os.path.join(self.default_download_folder, self.filename),
+                            self.default_download_folder)
+                        unzip_res = self.proc.sub_procs_run(cmd=unzip_zip_cmd)
+                        # Unzip downloaded file successfully.
+                        if unzip_res:
+                            del_zip_cmd = 'rm -rf %s' % os.path.join(self.default_download_folder, self.filename)
+                            self.filename = self.filename.replace('\\', '')
+                            rm_temp_macosx = 'rm -rf %s' % os.path.join(self.default_download_folder, '__MACOSX/')
+                            self.proc.sub_procs_run(cmd=del_zip_cmd)
+                            self.proc.sub_procs_run(cmd=rm_temp_macosx)
+                            grep_file = 'ls %s | grep %s.app' % (self.default_download_folder, product)
+                            result = self.proc.sub_procs_run(cmd=grep_file).stdout.decode().split()[0]
+                            os.rename(os.path.join(self.default_download_folder, result),
+                                      _abs_dSYM)
+                            return _abs_dSYM
+                        else:
+                            return False
+                    else:
+                        return False
                 else:
                     return False
+            else:
+                return False
 
-    def make_httpdownload_addr(self, build_id, version_number, version_type='appsotre', product='wegamers'):
+    def make_http_download_addr(self, build_id, version_number, version_type='appsotre', product='wegamers'):
         """
         Splicing version and application type to call corresponding method get download address.
         :param build_id: String object. SVN code. eg.11311
@@ -133,6 +130,7 @@ class DownloadDSYM(object):
 
         return method(build_id=build_id, version_number=version_number, version_type=version_type, product=product)
 
+    # The download link for wegamers_appstore version
     def wegamers_appstore(self, **kwargs):
         """
         WeGamers AppStore dSYM download link maker
@@ -143,8 +141,7 @@ class DownloadDSYM(object):
         return os.path.join(
             domain, wegamers_folder, platform, appstore, self.filename)
 
-    # merge download link for wegamers_appstore version.
-
+    # The download link for wegamers_dev version
     def wegamers_dev(self, **kwargs):
         """
         WeGamers Develop dSYM download link maker
@@ -157,8 +154,7 @@ class DownloadDSYM(object):
         return os.path.join(
             domain, wegamers_folder, platform, dev, self.filename)
 
-    # merge download link for wegamers_dev version.
-
+    # The download link for gamelive_appstore version
     def gamelive_appstore(self, build_id):
         """
         Not publish yet.
@@ -167,7 +163,7 @@ class DownloadDSYM(object):
         """
         pass
 
-    # merge download link for gamelive_appstore version.
+    # The download link for gamelive_dev version
     def gamelive_dev(self, **kwargs):
         """
         GameLive Develop dSYM download link maker
