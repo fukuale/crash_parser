@@ -10,10 +10,13 @@
     </head>
     <style>
         body{
-            background-color: #e8e8e8;
+            color: #0e83cd;
+            background-color: #ffffff;
         }
 
         #content_area {
+            font-family: sans-serif;
+            color: #0e83cd;
             text-align: center;
             width: 80%;
             height: 80%;
@@ -26,52 +29,135 @@
 
 
         .submit_view {
+            color: #0e83cd;
+            border: 1px solid #0e83cd;
             text-align: left;
             float: left;
             position: relative;
             width: 48%;
             height: 800px;
-            background-color: #aaaaaa;
-            border:none;
-            border-radius: 10px;
+            background-color: transparent;
+            /*border:none;*/
+            /*border-radius: 10px;*/
             padding: 8px;
             margin: 0 auto;
         }
 
         .submit_view textarea{
+            font-family: monospace;
+            font-size: 10px;
+            color: #0e83cd;
             width: 100%;
             height: 100%;
-            background-color: #aaaaaa;
+            background-color: transparent;
             border:none;
-            border-radius: 10px;
+            /*border-radius: 10px;*/
             padding: 1px;
+            resize: none;
+            outline: none;
         }
 
         .result_view {
+            font-size: 10px;
+            color: #0e83cd;
+            border: 1px solid #0e83cd;
             text-align: left;
             float: right;
             position: relative;
             width: 48%;
             height: 800px;
-            color: #f9f7f6;
-            background-color: #aaaaaa;
-            border:none;
-            border-radius: 10px;
+            background-color: transparent;
+            /*border:none;*/
+            /*border-radius: 10px;*/
             padding: 8px;
             margin: 0 auto 0 0;
             overflow: auto;
+            word-wrap:break-word;
+        }
+
+        .btn {
+            border: none;
+            /*font-family: inherit;*/
+            /*font-size: inherit;*/
+            /*color: inherit;*/
+            background: none;
+            cursor: pointer;
+            padding: 15px 50px;
+            display: inline-block;
+            margin: 15px 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            outline: none;
+            position: relative;
+            -webkit-transition: all 0.3s;
+            -moz-transition: all 0.3s;
+            transition: all 0.3s;
+        }
+
+        .btn:after {
+            content: '';
+            position: absolute;
+            z-index: -1;
+            -webkit-transition: all 0.3s;
+            -moz-transition: all 0.3s;
+            transition: all 0.3s;
+        }
+
+    /* Pseudo elements for icons */
+        .btn:before {
+            speak: none;
+            font-style: normal;
+            font-weight: normal;
+            font-variant: normal;
+            text-transform: none;
+            line-height: 1;
+            position: relative;
+            -webkit-font-smoothing: antialiased;
+        }
+        .btn {
+            border: 3px solid #0e83cd;
+            color: #0e83cd;
+        }
+
+        .btn-1e {
+            overflow: hidden;
+        }
+
+        .btn-1e:after {
+            width: 100%;
+            height: 0;
+            top: 50%;
+            left: 50%;
+            background: #0e83cd;
+            opacity: 0;
+            -webkit-transform: translateX(-50%) translateY(-50%) rotate(45deg);
+            -moz-transform: translateX(-50%) translateY(-50%) rotate(45deg);
+            -ms-transform: translateX(-50%) translateY(-50%) rotate(45deg);
+            transform: translateX(-50%) translateY(-50%) rotate(45deg);
+        }
+
+        .btn-1e:hover,
+        .btn-1e:active {
+            color: #ffffff;
+        }
+
+        .btn-1e:hover:after {
+            height: 260%;
+            opacity: 1;
+        }
+
+        .btn-1e:active:after {
+            height: 400%;
+            opacity: 1;
         }
 
 
-
-        button{
-            width: 150px;
-            margin: 0 auto;
-        }
 
 
     </style>
     <script>
+
         var socket;
 
         if (!window.WebSocket) {
@@ -83,7 +169,7 @@
         // Javascript Websocket Client
 
         if (window.WebSocket) {
-            socket = new WebSocket('ws://192.168.1.100:7724/push_crash');
+            socket = new WebSocket('ws://127.0.0.1:7724/push_crash');
 
             socket.onmessage = function(event) {
                 console.log(event);
@@ -149,14 +235,14 @@
             <H1>Crash Parser</H1>
             <form method="post" action="/push_crash" onsubmit="return false;">
             <div class="submit_view">
-                <textarea title="crash_log_to_submit" name="crash_log" id="crash_log"></textarea>
+                <textarea title="crash_log_to_submit" name="crash_log" id="crash_log" ></textarea>
             </div>
             <div class="result_view">
                 <div id="result_content"></div>
             </div>
             <div style="clear:both"></div>
-            <input type="button" id="btnSend" value="Submit it !" onclick="send(this.form.crash_log.value)"/>
-            <input type="button" id="btnClear" value="Clear Values !" onclick="clear_value()"/>
+            <button class="btn btn-1 btn-1e" type="button" id="btnSend" value="Submit it !" onclick="send(this.form.crash_log.value)">Submit</button>
+            <button class="btn btn-1 btn-1e" type="button" id="btnClear" value="Clear Values !" onclick="clear_value()">Clear</button>
             </form>
         </div>
     </body>
