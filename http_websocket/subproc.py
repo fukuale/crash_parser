@@ -3,6 +3,8 @@
 
 import subprocess
 
+import sys
+
 try:
     import logger
 except ModuleNotFoundError:
@@ -11,7 +13,6 @@ log = logger.Logger('runtimelog/r.log', 'SubProcessBase')
 
 
 def popen_judge(popen_obj, method_name, parameters):
-
     if popen_obj.returncode == 0:
         if popen_obj.stdout and not popen_obj.stderr:
             log.debug(' %-20s ]-[ Return: %s' % (method_name, popen_obj.stdout))
@@ -31,13 +32,13 @@ def popen_judge(popen_obj, method_name, parameters):
 
 
 class SubProcessBase:
-
     def __init__(self):
         pass
 
     @staticmethod
     def sub_procs_run(**args):
-        _func_name = logger.get_function_name()
+
+        _func_name = sys._getframe().f_back.f_code.co_name
         log.debug(' %-20s ]-[ Parameters in: %s' % (_func_name, args))
         if args.__len__() == 1:
             _sub_result = subprocess.run(args['cmd'].encode(),
