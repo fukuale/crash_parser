@@ -79,11 +79,12 @@ class ParserHandler(WebSocketHandler):
     def on_message(self, message):
         print(message)
         print(type(message))
-        self.write_message('test result:' + message)
+        self.write_message(message)
         pass
 
     def check_origin(self, origin):
         return True
+
 
 def parse_log():
     pcl = parse_crash_log()

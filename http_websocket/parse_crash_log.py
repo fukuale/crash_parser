@@ -38,8 +38,6 @@
 #                      |  |      (__| (__) (__(_
 #                                   |
 
-import subprocess
-import sqlite3
 import re
 
 try:
@@ -132,7 +130,7 @@ class CrashParser:
         else:
             return stacktrace_list, 'arm64'
 
-    def atos_run(self, dSYM_file, product_name):
+    def atos_run(self, dSYM_file, product_name, tableid, crashinfo, crash_id):
         """
         Run all funciton to parsing crash info to get parameters to run atos.
         :param dSYM_file: dSYM file absolute folder address.
@@ -145,6 +143,7 @@ class CrashParser:
         arch = '-arch'
         op = '-o'
         _l = '-l'
+        result = None
         app_symbol = dSYM_file + '/Contents/Resources/DWARF/%s' % product_name
 
         # call get_crash_list to filter what data need to parsing.
@@ -161,13 +160,16 @@ class CrashParser:
             memory_addr = _value[3]
             base_addr = _value[4]
             offset = _value[-1]
-            # Parsing memory address to get the truth method called
+            # Parsing stack address to get the truth crash position.
             atos_cmd = ' '.join([
                 atos, arch, cpu_arm_, op, app_symbol,
                 _l, base_addr, memory_addr])
             print(atos_cmd)
             parse_result = self.proc.sub_procs_run(cmd=atos_cmd)
-            result = parse_result.stdout.decode().replace('\n', '')
+            if parse_result:
+                result = parse_result.stdout.decode().replace('\n', '')
+            else:
+                return False
             print('atos result ', result)
             # Replace result to finally data
             replace_data = '   '.join([
@@ -176,13 +178,20 @@ class CrashParser:
             print('self.data_lines[line_id]', self.request_lines[line_id])
             self.request_lines[line_id] = '    ' + replace_data
 
+        # Crash information insert to sql
+        conn, cursor = sqlite_base.sqlite_connect()
+        sqlite_base.update(conn, cursor,
+                           table_name='backtrack_%d' % tableid,
+                           reason=crashinfo,
+                           condition='where TRAC_ID = %s' % crash_id)
         # print the finally data after parsing
         print('\n'.join(self.request_lines))
 
 
 if __name__ == '__main__':
     data = b"<pre>=============\xe5\xbc\x82\xe5\xb8\xb8\xe5\xb4\xa9\xe6\xba\x83\xe6\x8a\xa5\xe5\x91\x8a=============\nversion:            V1.9.5 (11311) [\xe6\xad\xa3\xe5\xbc\x8f\xe7\x89\x88]\ndeviceType:         iPhone 5 (GSM+CDMA)\nIOS Ver:            iPhone OS 8.4.1\navailableMemory:    103.5MB\nusedMemory:         53.3MB\ntime:               2017-09-27_16-13-07\nnUid:               0\nsName:              \nsLinkID:            \nsBindEmail:         \nphone:              \n\nERROR: All calls to UIKit need to happen on the main thread. You have a bug in your code. Use dispatch_async(dispatch_get_main_queue(), ^{ ... }); if you're unsure what thread you're in.\n\nBreak on PSPDFAssertIfNotMainThread to find out where.\n\nStacktrace: (\n\t0   WeGamers                            0x00aa32ed WeGamers + 10707693\n\t1   WeGamers                            0x00aa334b WeGamers + 10707787\n\t2   UIKit                               0x271bb105 <redacted> + 164\n\t3   UIKit                               0x26e4a719 <redacted> + 164\n\t4   MediaPlayer                         0x2504563f <redacted> + 994\n\t5   MediaPlayer                         0x25043f95 <redacted> + 212\n\t6   MediaPlayer                         0x25044029 <redacted> + 80\n\t7   MediaPlayer                         0x25043fd3 <redacted> + 38\n\t8   UIKit                               0x26e12f39 <redacted> + 44\n\t9   WebCore                             0x2ff57165 <redacted> + 264\n\t10  WebCore                             0x2ff57417 <redacted> + 394\n\t11  WebCore                             0x2ff56541 <redacted> + 172\n\t12  WebCore                             0x2ff5642d _ZN7WebCore19MediaSessionManager13sharedManagerEv + 124\n\t13  WebCore                             0x2ff5567d <redacted> + 32\n\t14  WebCore                             0x2fbe5235 <redacted> + 20\n\t15  WebCore                             0x2fbd3b37 <redacted> + 1046\n\t16  WebCore                             0x2fbb80f1 <redacted> + 36\n\t17  WebCore                             0x2fbc652d <redacted> + 56\n\t18  WebCore                             0x2fbc63d9 <redacted> + 232\n\t19  WebCore                             0x2f822a1b <redacted> + 126\n\t20  WebCore                             0x2f8228c5 <redacted> + 20\n\t21  WebCore                             0x2f821c9d <redacted> + 2660\n\t22  WebCore                             0x2f82087d <redacted> + 2224\n\t23  WebCore                             0x2f81ff35 <redacted> + 88\n\t24  WebCore                             0x2f81fe45 <redacted> + 212\n\t25  WebCore                             0x2f81f845 <redacted> + 104\n\t26  WebCore                             0x2f80f8e3 <redacted> + 334\n\t27  WebCore                             0x2f8d3b41 <redacted> + 20\n\t28  WebCore                             0x2f7c78dd <redacted> + 132\n\t29  WebCore                             0x2f7c7839 <redacted> + 24\n\t30  CoreFoundation                      0x23739cbf <redacted> + 14\n\t31  CoreFoundation                      0x2373983b <redacted> + 650\n\t32  CoreFoundation                      0x23737a8b <redacted> + 1418\n\t33  CoreFoundation                      0x23683f31 CFRunLoopRunSpecific + 476\n\t34  CoreFoundation                      0x23683d43 CFRunLoopRunInMode + 106\n\t35  WebCore                             0x2f82b98b <redacted> + 418\n\t36  libsystem_pthread.dylib             0x3251be17 <redacted> + 138\n\t37  libsystem_pthread.dylib             0x3251bd8b _pthread_start + 118\n\t38  libsystem_pthread.dylib             0x32519b14 thread_start + 8\n)</pre>"
+    print(data.decode())
     dSYM = '/Users/vincent/Downloads/WeGamers_11311.DSYM'
     cp = CrashParser(productname='WeGamers', rawdata=data)
     # cp.get_env_info()
-    cp.atos_run(dSYM_file=dSYM, product_name='WeGamers')
+    cp.atos_run(dSYM_file=dSYM, product_name='WeGamers', tableid=1, crashinfo='testcrash', crash_id='656464533')

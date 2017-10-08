@@ -67,6 +67,10 @@ class TaskSchedule(object):
         self.dSYM_abspath = str()
         self.parser_wait_raw = str()
 
+        # Initialisation
+        self.parser = CrashParser
+        self.dSYM = DownloadDSYM
+
     def gen_version_list(self):
         for k, v in enumerate(self.conf_files):
             _v_list = open(os.path.join(self.conf_dir, self.conf_files)).readlines()
@@ -87,7 +91,7 @@ class TaskSchedule(object):
             print('something went wrong... can\'t detected any dSYM file compare this case.')
 
     def parse(self):
-        self.parser.call_atos(dSYM_file=self.dSYM_abspath,
+        self.parser.atos_run(dSYM_file=self.dSYM_abspath,
                               product_name=self.package_names[self.current_app_name],
                               proc=self.subproc)
 

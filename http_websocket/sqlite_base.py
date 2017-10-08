@@ -48,8 +48,8 @@ def sqlite_connect():
 
     :return: Object sqlite Connection
     """
-    conn = sqlite3.connect(':memory:')
-    # conn = sqlite3.connect('db/crash_reason_count.sqlite')
+    # conn = sqlite3.connect(':memory:')
+    conn = sqlite3.connect('db/crash_reason_count.sqlite')
     if conn:
         print('crash_reason_count.db connected . . .')
         cursor = conn.cursor()
@@ -92,7 +92,8 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     :return: Nothing to return
     """
     cursor.execute(
-        'CREATE TABLE backtrack_%s(ID INTEGER PRIMARY KEY AUTOINCREMENT,TRAC_ID MESSAGE_TEXT NOT NULL,APPLICATION_LOCATE MESSAGE_TEXT);' % kwargs['id'])
+        'CREATE TABLE backtrack_%s(ID INTEGER PRIMARY KEY AUTOINCREMENT, TRAC_ID MESSAGE_TEXT, REASON MESSAGE_TEXT);' %
+        kwargs['id'])
     print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
@@ -133,8 +134,8 @@ def insert(conn, cursor, end=True, **kwargs):
 
         elif kwargs['table_name'].startswith('backtrack_'):
             _inse_cmd_format_ = "INSERT INTO %s(TRAC_ID) values(?)" % kwargs['table_name']
-            print('inse_cmd_format', _inse_cmd_format_, kwargs['trac_id'])
-            cursor.execute(_inse_cmd_format_, (kwargs['trac_id'], ))
+            print('inse_cmd_format', _inse_cmd_format_, kwargs['crash_id'])
+            cursor.execute(_inse_cmd_format_, (kwargs['crash_id'], ))
 
     _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
     cursor.execute(inse)
@@ -156,18 +157,23 @@ def update(conn, cursor, end=True, **kwargs):
     :param kwargs:
     :return:
     """
-    udpate_sql = 'UPDATE %s SET ' % kwargs['table_name']
-    for _index, _value in enumerate(kwargs['columns']):
-        if _index >= 1:
-            udpate_sql += ', '
-        udpate_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
-    udpate_sql += kwargs['condition']
+    _udpate_sql = 'UPDATE %s SET ' % kwargs['table_name']
+    print('kwargs****', kwargs)
+    if 'reason' not in kwargs.keys():
+        for _index, _value in enumerate(kwargs['columns']):
+            if _index >= 1:
+                _udpate_sql += ', '
+            _udpate_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
+        _udpate_sql += kwargs['condition']
 
-    cursor.execute(udpate_sql)
+    else:
+        _udpate_sql += "%s = \'%s\'" % ('REASON', kwargs['reason'])
+        _udpate_sql += kwargs['condition']
+
+    cursor.execute(_udpate_sql)
     conn.commit()
     if end:
         cursor.close()
-        conn.commit()
         conn.close()
 
 
@@ -221,6 +227,7 @@ def random_c():
 
     return contents[re]
 
+
 # create_backtrack_table(conn, 10)
 
 
@@ -240,15 +247,13 @@ def random_c():
 #         lv='last version',
 #         fixed=0,
 #         table_name='statistics')
-
+#
 # update(conn, cursor,
 #        end=False,
 #        table_name='statistics',
 #        columns=['COUNT', 'CONTENT', 'LAST_VERSION'],
 #        values=['99999', 'ghmdghmd', 'WIEF'],
-# columns=['COUNT'],
-# values=['99999'],
-# condition='')
+#        condition='')
 #
 # _unknow_type = 'EKFawerfgaw'
 # cond = "where CONTENT LIKE \'%%%s%%\'" % _unknow_type

@@ -46,11 +46,10 @@ except ModuleNotFoundError as e:
     from http_websocket import sqlite_base
 
 
-class Smililarity_Compute(object):
-    def __init__(self, datain, versioninfo, tracid):
-        self.wait_compute_data = datain
+class SimilarityCompute(object):
+    def __init__(self, versioninfo, crashid):
         self.ver_info = versioninfo
-        self.trac_id = tracid
+        self.crash_id = crashid
 
     @staticmethod
     def hex_verify(contentin):
@@ -105,7 +104,7 @@ class Smililarity_Compute(object):
                 _after += _after.join(i)
         return _after.split()
 
-    def similary_sql_op(self):
+    def apple_locate_similarity(self, datain):
         # Parameters
         _first_match = list()
         _percent_of = list()  # 0)ID, 1)COUNT, 2)CONTENT, 3)SIMILARITY PERCENT
@@ -114,7 +113,7 @@ class Smililarity_Compute(object):
         conn, cursor = sqlite_base.sqlite_connect()
 
         # Get wait compute data ready to match in sql.
-        alpha_str = self.variable_remove(self.wait_compute_data)
+        alpha_str = self.variable_remove(datain)
         for k, v in enumerate(alpha_str):
             if v.__len__() > 3:
                 _first_match = sqlite_base.search(conn, cursor,
@@ -122,21 +121,22 @@ class Smililarity_Compute(object):
                                                   columns='ROWID, COUNT, CONTENT',
                                                   table_name='statistics',
                                                   condition="where CONTENT LIKE \'%%%s%%\'" % alpha_str[0])
-
+        # Insert apple locate reason if not matched.
         if not _first_match:
             _row_id = sqlite_base.insert(conn, cursor,
                                          end=False,
                                          table_name='statistics',
                                          fixed=0,
                                          count=1,
-                                         content=self.wait_compute_data,
+                                         content=datain,
                                          fv=self.ver_info,
                                          lv=self.ver_info)
+            # Insert backtrack information if statistics table inserted sucess.
             if _row_id:
                 sqlite_base.insert(conn, cursor,
                                    end=False,
                                    table_name='backtrack_%d' % _row_id,
-                                   trac_id=self.trac_id)
+                                   trac_id=self.crash_id)
 
         # Similarity compute logic
         if _first_match:
@@ -166,14 +166,14 @@ class Smililarity_Compute(object):
                 sqlite_base.insert(conn, cursor,
                                    end=False,
                                    table_name='backtrack_%d' % _percent_of[-1][0],
-                                   trac_id=self.trac_id)
+                                   crash_id=self.crash_id)
             else:
                 _row_id = sqlite_base.insert(conn, cursor,
                                              end=False,
                                              table_name='statistics',
                                              fixed=0,
                                              count=1,
-                                             content=self.wait_compute_data,
+                                             content=datain,
                                              fv=self.ver_info,
                                              lv=self.ver_info)
                 print('percentage insert ', _row_id)
@@ -181,7 +181,7 @@ class Smililarity_Compute(object):
                     sqlite_base.insert(conn, cursor,
                                        end=False,
                                        table_name='backtrack_%d' % _row_id,
-                                       trac_id=self.trac_id)
+                                       trac_id=self.crash_id)
         if conn:
             if cursor:
                 cursor.close()
@@ -190,6 +190,6 @@ class Smililarity_Compute(object):
 
 
 if __name__ == '__main__':
-    data = "ERROR: All calls to UIKit need to happen on the main thread. You have a bug in your code. Use dispatch_async(dispatch_get_main_queue(), ^{ ... }); if you're unsure what thread you're in."
-    sc = Smililarity_Compute(datain=data, versioninfo='1.9.3', tracid='656464533')
-    sc.similary_sql_op()
+    data = "ERROR: All callsssee to UIKit need to happen on the main thread. You have a bug in your code. Use dispatch_async(dispatch_get_main_queue(), ^{ ... }); if you're unsure what thread you're in."
+    sc = SimilarityCompute(versioninfo='1.9.3', crashid='656464533')
+    sc.apple_locate_similarity(data)
