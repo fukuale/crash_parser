@@ -7,6 +7,7 @@ from urllib import request
 import datetime
 import os
 import queue
+
 try:
     from subproc import SubProcessBase
     from parse_crash_log import CrashParser
@@ -19,15 +20,13 @@ yesteday = str(datetime.date.today() - datetime.timedelta(1))
 class GetCrashInfoFromServer(object):
     """docstring for GetCrashInfoFromServer"""
 
-    def __init__(self, version, date=yesteday):
+    def __init__(self):
         super(GetCrashInfoFromServer, self).__init__()
         self.sec_key = '8HTm)NZ[K=I0Ju!L%a@Ua!#g29ZPFgm9'
         self.domain = 'http://gdata.linkmessenger.com'
         self.api = 'index.php/Admin/Api'
         self.method_get = 'getAppError'
         self.method_read = 'appErrorInfo'
-        self.date = date
-        self.version = version
         self.get_ids_url = '/'.join([self.domain, self.api, self.method_get])
         self.read_ids_url = '/'.join([self.domain, self.api, self.method_read])
         self.que = queue.Queue()
@@ -40,18 +39,19 @@ class GetCrashInfoFromServer(object):
         :param date: '%Y-%m-%d' format string. Default is yesterday
         :return: sign key, String object
         """
-        self.md5.update((self.sec_key + str(date)).encode())
-        return self.md5.hexdigest().lower()
+        md5 = hashlib.md5()
+        md5.update((self.sec_key + str(date)).encode())
+        return md5.hexdigest().lower()
 
-    def get_task_list(self):
+    def get_task_list(self, version, date):
         """
         Get trac_id from web API
         :return: trac_id, List object.
         """
         params = {
-            'day': self.date,
-            'ver': self.version,
-            'sign': self.get_md5(self.date)
+            'day': date,
+            'ver': version,
+            'sign': self.get_md5(date)
         }
 
         url_params = parse.urlencode(params).encode('utf-8')
@@ -60,34 +60,28 @@ class GetCrashInfoFromServer(object):
             url=self.get_ids_url,
             data=url_params
         )
+        print('list_params', self.get_ids_url, url_params)
         task_list = request.urlopen(list_params).read()
+        if task_list:
+            return eval(task_list)
 
-        return eval(task_list)
-
-    def get_crash_log(self):
+    def get_crash_log(self, version, date=yesteday):
         """
         Get aim trac_id's content from web API.
         :return: Crash log information. Bytes object
         """
-        task_ids = self.get_task_list()
-        crash_content = ''
-        for i in task_ids:
-            yield crash_content
-            param = {'row': i}
+        task_ids = self.get_task_list(version=version, date=date)
+        if task_ids:
+            for task_id in task_ids:
+                print('task list' + ', '.join(task_ids) + '\n' + task_id)
+                param = {'row': task_id}
 
-            parm_encode = parse.urlencode(param).encode('utf-8')
+                parm_encode = parse.urlencode(param).encode('utf-8')
 
-            crash_page = request.Request(
-                url=self.read_ids_url,
-                data=parm_encode
-            )
+                crash_page = request.Request(
+                    url=self.read_ids_url,
+                    data=parm_encode
+                )
 
-            crash_content = request.urlopen(crash_page).read()
-
-    def run(self):
-        for i in self.get_crash_log():
-            print(i)
-
-
-gcsi = GetCrashInfoFromServer(version='V1.9.5 (11311) [正式版]')
-gcsi.run()
+                crash_content = request.urlopen(crash_page).read()
+                yield task_id, crash_content

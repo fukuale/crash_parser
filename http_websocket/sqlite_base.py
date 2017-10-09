@@ -124,6 +124,7 @@ def insert(conn, cursor, end=True, **kwargs):
     :param kwargs: Included arg1: table_name, arg2: count, arg3:content, arg4:fv, arg5:lv, arg6:uptime
     :return:
     """
+    print('insert kwargs', kwargs)
     inse = str()
     if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
@@ -172,9 +173,17 @@ def update(conn, cursor, end=True, **kwargs):
 
     cursor.execute(_udpate_sql)
     conn.commit()
+
+    _row_id_update = search(conn, cursor,
+                            end=False,
+                            columns='rowid',
+                            table_name=kwargs['table_name'],
+                            condition=kwargs['condition'])
+
     if end:
         cursor.close()
         conn.close()
+    return _row_id_update[0][0]
 
 
 def search(conn, cursor, end=True, **kwargs):

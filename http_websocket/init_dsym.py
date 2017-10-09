@@ -51,19 +51,17 @@ wegamers_folder = 'GameIM'
 gamelive_folder = 'GameLive'
 wegamer = 'WeGamers'
 gamlive = 'GameLive'
-appstore = 'AppStore正式发布/dsYm'
+appstore = 'AppStore正式发布/dsYM'
 dev = 'dev/DSYM'
 platform = 'ios'
 
 
 class DownloadDSYM(object):
     def __init__(self):
-        self.filename = str()
+        super(DownloadDSYM, self).__init__()
         self.proc = subproc.SubProcessBase()
         self.default_download_folder = os.path.join(
             os.path.expanduser('~'), 'Downloads')
-        self.zip_file = os.path.join(
-            self.default_download_folder, self.filename)
 
     def init_dSYM(self, build_id, version_number, version_type, product):
         """
@@ -84,25 +82,29 @@ class DownloadDSYM(object):
             # Call to get the download link
             http_addr = self.make_http_download_addr(build_id, version_number, version_type, product)
             if http_addr:
-                download_cmd = 'curl -o %s %s' % (self.zip_file, http_addr)
+                download_cmd = 'curl -o %s %s' % (os.path.join(
+                    self.default_download_folder, _abs_dSYM), http_addr)
                 # Download file successfully.
                 download_res = self.proc.sub_procs_run(cmd=download_cmd)
                 if download_res:
                     # Valid files when the file size is more than 20MB
-                    if os.path.getsize(os.path.join(self.zip_file)) > 20480:
+                    if os.path.getsize(os.path.join(os.path.join(
+                            self.default_download_folder, _abs_dSYM))) > 20480:
                         unzip_zip_cmd = 'unzip %s -d %s' % (
-                            os.path.join(self.default_download_folder, self.filename),
+                            os.path.join(self.default_download_folder, _abs_dSYM),
                             self.default_download_folder)
                         unzip_res = self.proc.sub_procs_run(cmd=unzip_zip_cmd)
                         # Unzip downloaded file successfully.
                         if unzip_res:
-                            del_zip_cmd = 'rm -rf %s' % os.path.join(self.default_download_folder, self.filename)
-                            self.filename = self.filename.replace('\\', '')
+                            del_zip_cmd = 'rm -rf %s' % os.path.join(self.default_download_folder, _abs_dSYM)
+                            # _abs_dSYM = self._abs_dSYM.replace('\\', '')
                             rm_temp_macosx = 'rm -rf %s' % os.path.join(self.default_download_folder, '__MACOSX/')
                             self.proc.sub_procs_run(cmd=del_zip_cmd)
                             self.proc.sub_procs_run(cmd=rm_temp_macosx)
                             grep_file = 'ls %s | grep %s.app' % (self.default_download_folder, product)
                             result = self.proc.sub_procs_run(cmd=grep_file).stdout.decode().split()[0]
+                            test1 = os.path.join(self.default_download_folder, result)
+                            test2 = _abs_dSYM
                             os.rename(os.path.join(self.default_download_folder, result),
                                       _abs_dSYM)
                             return _abs_dSYM
@@ -130,18 +132,16 @@ class DownloadDSYM(object):
 
         return method(build_id=build_id, version_number=version_number, version_type=version_type, product=product)
 
-    # The download link for wegamers_appstore version
     def wegamers_appstore(self, **kwargs):
         """
         WeGamers AppStore dSYM download link maker
         :param kwargs: Accept build_id
         :return: String object. download link
         """
-        self.filename = 'WeGamers.app.%s.dSYM.zip' % kwargs['build_id']
+        self._abs_dSYM = 'WeGamers.app.%s.dSYM.zip' % kwargs['build_id']
         return os.path.join(
-            domain, wegamers_folder, platform, appstore, self.filename)
+            domain, wegamers_folder, platform, appstore, self._abs_dSYM)
 
-    # The download link for wegamers_dev version
     def wegamers_dev(self, **kwargs):
         """
         WeGamers Develop dSYM download link maker
@@ -149,12 +149,11 @@ class DownloadDSYM(object):
         :return: String object. download link
         """
         print(kwargs)
-        self.filename = 'WeGamers_Enterprise_v%s\(r%s\)-dSYM.zip' % (
+        self._abs_dSYM = 'WeGamers_Enterprise_v%s\(r%s\)-dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
-            domain, wegamers_folder, platform, dev, self.filename)
+            domain, wegamers_folder, platform, dev, self._abs_dSYM)
 
-    # The download link for gamelive_appstore version
     def gamelive_appstore(self, build_id):
         """
         Not publish yet.
@@ -163,23 +162,13 @@ class DownloadDSYM(object):
         """
         pass
 
-    # The download link for gamelive_dev version
     def gamelive_dev(self, **kwargs):
         """
         GameLive Develop dSYM download link maker
         :param kwargs: Accept 1)version_number, 2)build_id
         :return: String object. download link
         """
-        self.filename = 'GameLive_Enterprise_v%s\(r%s\)-dSYM.zip' % (
+        self._abs_dSYM = 'GameLive_Enterprise_v%s\(r%s\)-dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
-            domain, gamelive_folder, platform, dev, self.filename)
-
-        # merge download link for gamelive_dev version.
-
-
-if __name__ == '__main__':
-    data = ['1.9.5', '11311', 'appstore']
-    dd = DownloadDSYM()
-    res = dd.init_dSYM(version_number=data[0], build_id=data[1], version_type=data[-1], product='WeGamers')
-    print(res)
+            domain, gamelive_folder, platform, dev, self._abs_dSYM)

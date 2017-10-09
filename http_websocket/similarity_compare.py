@@ -97,6 +97,7 @@ class SimilarityCompute(object):
         :return: List object.
         """
         _after = str()
+        objectin = objectin.translate({ord(c): None for c in '<>!,.:'})
         _hex_rm = self.hex_remove(objectin)
         _re_str = ' '.join(_hex_rm)
         for i in _re_str:
@@ -108,6 +109,7 @@ class SimilarityCompute(object):
         # Parameters
         _first_match = list()
         _percent_of = list()  # 0)ID, 1)COUNT, 2)CONTENT, 3)SIMILARITY PERCENT
+        _row_id = int()
 
         # Connect to sql
         conn, cursor = sqlite_base.sqlite_connect()
@@ -115,7 +117,7 @@ class SimilarityCompute(object):
         # Get wait compute data ready to match in sql.
         alpha_str = self.variable_remove(datain)
         for k, v in enumerate(alpha_str):
-            if v.__len__() > 3:
+            if v.__len__() > 7:
                 _first_match = sqlite_base.search(conn, cursor,
                                                   end=False,
                                                   columns='ROWID, COUNT, CONTENT',
@@ -136,32 +138,30 @@ class SimilarityCompute(object):
                 sqlite_base.insert(conn, cursor,
                                    end=False,
                                    table_name='backtrack_%d' % _row_id,
-                                   trac_id=self.crash_id)
+                                   crash_id=self.crash_id)
 
         # Similarity compute logic
         if _first_match:
             for i in _first_match:
-                # Get what string will be comparation and split it.
-                _target = i[-1].split()
 
                 # Remove be_compare string hex item.
-                _sql_only_str = self.variable_remove(_target)
+                _sql_only_str = self.variable_remove(i[-1])
 
                 # Compare two list similarity percentage.
                 _percent_of.append((i[0], i[1], i[2], self.compute_similarity(alpha_str, _sql_only_str)))
+                print('_percent_of', _percent_of, '\n', alpha_str, _sql_only_str)
             # Sorted by percentage.
             _percent_of = sorted(_percent_of, key=lambda x: (x[-1]))
-            print('_percent_of', _percent_of)
 
         if _percent_of:
             # if 1 means 100% matched
             if 1 == _percent_of[-1][-1]:
-                sqlite_base.update(conn, cursor,
-                                   end=False,
-                                   table_name='statistics',
-                                   columns=['COUNT', 'LAST_VERSION'],
-                                   values=[_percent_of[-1][1] + 1, self.ver_info],
-                                   condition='where ID = %d' % _percent_of[-1][0])
+                _row_id = sqlite_base.update(conn, cursor,
+                                             end=False,
+                                             table_name='statistics',
+                                             columns=['COUNT', 'LAST_VERSION'],
+                                             values=[_percent_of[-1][1] + 1, self.ver_info],
+                                             condition='where ID = %d' % _percent_of[-1][0])
                 print('100%')
                 sqlite_base.insert(conn, cursor,
                                    end=False,
@@ -176,20 +176,15 @@ class SimilarityCompute(object):
                                              content=datain,
                                              fv=self.ver_info,
                                              lv=self.ver_info)
-                print('percentage insert ', _row_id)
+                print('percentage insert ', type(_row_id), _row_id)
                 if _row_id:
                     sqlite_base.insert(conn, cursor,
                                        end=False,
                                        table_name='backtrack_%d' % _row_id,
-                                       trac_id=self.crash_id)
+                                       crash_id=self.crash_id)
         if conn:
             if cursor:
                 cursor.close()
             conn.commit()
             conn.close()
-
-
-if __name__ == '__main__':
-    data = "ERROR: All callsssee to UIKit need to happen on the main thread. You have a bug in your code. Use dispatch_async(dispatch_get_main_queue(), ^{ ... }); if you're unsure what thread you're in."
-    sc = SimilarityCompute(versioninfo='1.9.3', crashid='656464533')
-    sc.apple_locate_similarity(data)
+        return _row_id
