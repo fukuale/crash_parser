@@ -38,6 +38,8 @@
 #                      |  |      (__| (__) (__(_
 #                                   |
 import os
+
+import time
 import tornado.options
 import tornado.ioloop
 import tornado.httpserver
@@ -47,7 +49,14 @@ from tornado.options import define, options
 from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
 
-import parse_crash_log
+try:
+    from init_dsym import DownloadDSYM
+    from parse_crash_log import CrashParser
+    from similarity_compare import SimilarityCompute
+except ModuleNotFoundError:
+    from http_websocket.init_dsym import DownloadDSYM
+    from http_websocket.parse_crash_log import CrashParser
+    from http_websocket.similarity_compare import SimilarityCompute
 
 define('port', default=7724, type=int)
 
@@ -77,18 +86,65 @@ class ParserHandler(WebSocketHandler):
         pass
 
     def on_message(self, message):
-        print(message)
-        print(type(message))
-        self.write_message(message)
-        pass
+        pl = ParsingLog()
+        ap = pl.parsing(message)
+        if ap:
+            self.write_message(ap)
+        else:
+            self.write_message('Parsing content FAILED ! Contact [Vincent FUNG] for provide support.')
 
     def check_origin(self, origin):
         return True
 
 
-def parse_log():
-    pcl = parse_crash_log()
-    pcl.call_atos()
+class SetWebConf(WebSocketHandler):
+    def on_message(self, message):
+        print(message)
+
+
+class ParsingLog(object):
+    def __init__(self):
+        self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'conf', '_web_parser.conf')
+        self.data_res = str()
+
+    def get_product_name(self, raw_data):
+        temp = open(self.conf_dir).readlines()
+        for name in temp:
+            if raw_data.find(name):
+                return name.strip()
+            else:
+                return False
+
+    def get_env_info(self, raw_data):
+        env = CrashParser.get_env_info(raw_data)
+        return env, raw_data
+
+    def parsing(self, raw_data):
+        p_name = self.get_product_name(raw_data)
+        raw_data = raw_data.encode()
+        print(raw_data)
+        env, r_data = self.get_env_info(raw_data)
+        if env and r_data and raw_data and p_name:
+            dd = DownloadDSYM()
+            res_dSYM = dd.init_dSYM(version_number=env[0],
+                                    build_id=env[1],
+                                    version_type=env[-1],
+                                    product=p_name)
+            if res_dSYM:
+                _reason = CrashParser.get_apple_reason(bytes_in=raw_data)
+
+                sc = SimilarityCompute(versioninfo=env[0], crashid='0000000000')
+                _row_id = sc.apple_locate_similarity(_reason)
+
+                _ins_parser = CrashParser(productname=p_name, rawdata=raw_data)
+                self.data_res = _ins_parser.atos_run(dSYM_file=res_dSYM,
+                                                     product_name=p_name,
+                                                     tableid=_row_id,
+                                                     crash_id='0000000000')
+                print(self.data_res)
+            return self.data_res
+        else:
+            return False
 
 
 def run():
@@ -96,6 +152,7 @@ def run():
     app = tornado.web.Application([
         (r"/", IndexHandler),
         (r"/push_crash", ParserHandler),
+        (r"/setwebconf", SetWebConf),
     ],
         template_path=os.path.join(os.path.dirname(__file__), "templates"),
         debug=True

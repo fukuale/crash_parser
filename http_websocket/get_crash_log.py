@@ -45,8 +45,8 @@ class GetCrashInfoFromServer(object):
 
     def get_task_list(self, version, date):
         """
-        Get trac_id from web API
-        :return: trac_id, List object.
+        Get crash_id from web API
+        :return: crash_id, List object.
         """
         params = {
             'day': date,
@@ -67,7 +67,7 @@ class GetCrashInfoFromServer(object):
 
     def get_crash_log(self, version, date=yesteday):
         """
-        Get aim trac_id's content from web API.
+        Get aim crash_id's content from web API.
         :return: Crash log information. Bytes object
         """
         task_ids = self.get_task_list(version=version, date=date)

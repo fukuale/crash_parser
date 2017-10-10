@@ -181,13 +181,21 @@ class CrashParser:
                 stacktrac_id, produce_name_raw, memory_addr, offset, result])
             print('replace_data', 'target line', line_id, 'data:\n', replace_data)
             print('self.data_lines[line_id]', self.request_lines[line_id])
-            self.request_lines[line_id] = '    ' + replace_data
-
-        # Crash information insert to sql
+            if '\t' in self.request_lines[line_id]:
+                self.request_lines[line_id] = '\t' + replace_data
+            else:
+                self.request_lines[line_id] = replace_data
+# Crash information insert to sql
         conn, cursor = sqlite_base.sqlite_connect()
         sqlite_base.update(conn, cursor,
                            table_name='backtrack_%d' % tableid,
                            reason=','.join(reason_l),  # All crash information will be inserted to sql...
-                           condition="where TRAC_ID = '%s'" % crash_id)
+                           condition="where CRASH_ID = '%s'" % crash_id)
         # print the finally data after parsing
+        conn_db2, cursor_db2 = sqlite_base.sqlite_connect('report.sqlite')
+        sqlite_base.insert(conn_db2, cursor_db2,
+                           table_name='report',
+                           crash_id=crash_id,
+                           log='\n'.join(self.request_lines))  # All crash information will be inserted to sql...
         print('\n'.join(self.request_lines))
+        return '\n'.join(self.request_lines)

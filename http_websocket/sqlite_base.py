@@ -42,14 +42,17 @@ import time
 import datetime
 import sqlite3
 
+import os
 
-def sqlite_connect():
+
+def sqlite_connect(sql_name='crash_reason_count.sqlite'):
     """
 
     :return: Object sqlite Connection
     """
+    sql_path = os.path.join(os.path.expanduser('~'), 'CrashParser', 'database', sql_name)
     # conn = sqlite3.connect(':memory:')
-    conn = sqlite3.connect('db/crash_reason_count.sqlite')
+    conn = sqlite3.connect(sql_path)
     if conn:
         print('crash_reason_count.db connected . . .')
         cursor = conn.cursor()
@@ -62,15 +65,13 @@ def sqlite_connect():
 
 def create_base_table(conn, cursor, end=True):
     """
-
     :param conn: Object sqlite Connection
     :param cursor: Object sqlite Cursor
     :param end: Boolean type, if True will be close sqlite connect after this method.
     :return: Nothing to return
     """
     cursor.execute('''CREATE TABLE statistics
-        (ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        FIXED INT NOT NULL,
+        (FIXED INT NOT NULL,
         COUNT INT NOT NULL,
         CONTENT MESSAGE_TEXT NOT NULL,
         FIRST_VERSION MESSAGE_TEXT NOT NULL,
@@ -92,9 +93,18 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     :return: Nothing to return
     """
     cursor.execute(
-        'CREATE TABLE backtrack_%s(ID INTEGER PRIMARY KEY AUTOINCREMENT, TRAC_ID MESSAGE_TEXT, REASON MESSAGE_TEXT);' %
+        'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT);' %
         kwargs['id'])
     print('table of %s create successfully . . .' % kwargs['id'])
+    if end:
+        cursor.close()
+        conn.close()
+
+
+def create_report_table(conn, cursor, end=True, **kwargs):
+    cursor.execute(
+        'CREATE TABLE report(CRASH_ID MESSAGE_TEXT, LOG MESSAGE_TEXT);')
+    print('report table create successfully . . .')
     if end:
         cursor.close()
         conn.close()
@@ -110,6 +120,9 @@ def create_tables(conn, cursor, tablename, end=True, create=True):
             return True
         elif create and tablename == 'statistics':
             create_base_table(conn, cursor, end=end)
+            return True
+        elif create and tablename == 'report':
+            create_report_table(conn, cursor, end=end)
             return True
         else:
             return False
@@ -134,9 +147,13 @@ def insert(conn, cursor, end=True, **kwargs):
                             str(int(time.mktime(datetime.datetime.now().timetuple())))))
 
         elif kwargs['table_name'].startswith('backtrack_'):
-            _inse_cmd_format_ = "INSERT INTO %s(TRAC_ID) values(?)" % kwargs['table_name']
+            _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, INSERT_TIME) values(?,?)" % kwargs['table_name']
             print('inse_cmd_format', _inse_cmd_format_, kwargs['crash_id'])
-            cursor.execute(_inse_cmd_format_, (kwargs['crash_id'], ))
+            cursor.execute(_inse_cmd_format_, (kwargs['crash_id'],
+                                               str(int(time.mktime(datetime.datetime.now().timetuple())))))
+        elif kwargs['table_name'] == 'report':
+            _inse_cmd_format = "INSERT INTO report(CRASH_ID, LOG) values(?,?)"
+            cursor.execute(_inse_cmd_format, (kwargs['crash_id'], kwargs['log']))
 
     _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
     cursor.execute(inse)
@@ -160,16 +177,15 @@ def update(conn, cursor, end=True, **kwargs):
     """
     _udpate_sql = 'UPDATE %s SET ' % kwargs['table_name']
     print('kwargs****', kwargs)
-    if 'reason' not in kwargs.keys():
+
+    if 'columns' in kwargs.keys():
         for _index, _value in enumerate(kwargs['columns']):
             if _index >= 1:
                 _udpate_sql += ', '
             _udpate_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
-        _udpate_sql += kwargs['condition']
 
-    else:
+    elif 'reason' in kwargs.keys():
         _udpate_sql += "%s = \'%s\'" % ('REASON', kwargs['reason'])
-        _udpate_sql += kwargs['condition']
 
     cursor.execute(_udpate_sql)
     conn.commit()
@@ -213,68 +229,3 @@ def search(conn, cursor, end=True, **kwargs):
     except sqlite3.OperationalError as e:
         # TODO : WRITE LOG
         return False
-
-
-def random_c():
-    contents = {
-        1: 'IOWJhdfthtyjtrukjfgnFWF',
-        2: 'OBIWErtsrjtyjgesrgertsegthJQKWF',
-        3: 'OOQWFrthdrtWEF6845ADFG',
-        4: 'OUIBPWthhgrynwegfeOEQORJ',
-        5: 'JXCVPOawefhrthQEWF',
-        6: 'jaUWENcfawefagnFIAWE',
-        7: '6546AWdfgncfghndfghE1F35',
-        8: 'IOVJAWOEKFawerfgawefNALWF3',
-        9: '126B54cgndrthsertghdfSER',
-        10: '68465ghdfghfg45416',
-        11: 'oaiwejfjndfghdrtoi651',
-        12: 'wejfoi6WFEGG',
-        13: 'oaiwejfoi651'
-    }
-
-    re = random.randint(1, 13)
-
-    return contents[re]
-
-
-# create_backtrack_table(conn, 10)
-
-
-# conn, cursor = sqlite_connect()
-# print(type(conn), type(cursor))
-# create_base_table(conn, cursor, end=False)
-# create_backtrack_table(conn, cursor, end=False, id='1')
-# for i in range(0, 20):
-#     insert(
-#         end=False,
-#         conn=conn,
-#         cursor=cursor,
-#         status=0,
-#         count=i + 100,
-#         content=random_c(),
-#         fv='first version',
-#         lv='last version',
-#         fixed=0,
-#         table_name='statistics')
-#
-# update(conn, cursor,
-#        end=False,
-#        table_name='statistics',
-#        columns=['COUNT', 'CONTENT', 'LAST_VERSION'],
-#        values=['99999', 'ghmdghmd', 'WIEF'],
-#        condition='')
-#
-# _unknow_type = 'EKFawerfgaw'
-# cond = "where CONTENT LIKE \'%%%s%%\'" % _unknow_type
-# _target = search(conn,
-#                  cursor,
-#                  end=False,
-#                  columns='*',
-#                  table_name='statistics',
-#                  condition='')
-# for i in _target:
-#     print('search', i)
-#
-# cursor.close()
-# conn.commit()
-# conn.close()

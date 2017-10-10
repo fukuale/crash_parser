@@ -15,7 +15,7 @@
         }
 
         #content_area {
-            font-family: sans-serif;
+            font-family: Monaco, "Microsoft YaHei UI", "WenQuanYi Micro Hei", sans-serif;
             color: #0e83cd;
             text-align: center;
             width: 80%;
@@ -44,8 +44,8 @@
         }
 
         .submit_view textarea{
-            font-family: monospace;
-            font-size: 10px;
+            font-family: Monaco, "Microsoft YaHei UI", "WenQuanYi Micro Hei", sans-serif;
+            font-size: 11px;
             color: #0e83cd;
             width: 100%;
             height: 100%;
@@ -58,7 +58,7 @@
         }
 
         .result_view {
-            font-size: 10px;
+            font-size: 11px;
             color: #0e83cd;
             border: 1px solid #0e83cd;
             text-align: left;
@@ -73,6 +73,10 @@
             margin: 0 auto 0 0;
             overflow: auto;
             word-wrap:break-word;
+        }
+
+        .result_view pre{
+            font-family: Monaco, "Microsoft YaHei UI", "WenQuanYi Micro Hei", sans-serif;
         }
 
         .btn {
@@ -167,39 +171,41 @@
         }
 
         // Javascript Websocket Client
-
-        if (window.WebSocket) {
-            socket = new WebSocket('ws://127.0.0.1:7724/push_crash');
+        function initSocket() {
+            if (window.WebSocket) {
+            socket = new WebSocket('ws://192.168.1.100:7724/push_crash');
 
             socket.onmessage = function(event) {
                 console.log(event);
-                var responed = document.getElementById('result_content');
-
-                responed.innerHTML ='<pre>' + event.data + '</pre>'
+                document.getElementById('result_content').innerHTML ='<pre>' + event.data + '</pre>';
 
             };
 
             socket.onopen = function(event) {
 
-                var responed = document.getElementById('result_content');
-
-                responed.value = "Web Socket opened!";
+                console.log(socket.status, event.type)
+                document.getElementById('btnSend').innerHTML = 'submit';
 
             };
 
             socket.onclose = function(event) {
 
-                var responed = document.getElementById('result_content');
-
-                responed.value = "Web Socket closed";
+                document.getElementById('result_content').innerHTML ='<pre>' + 'WebSocket Closed.' + '</pre>';
+                document.getElementById('btnSend').innerHTML = 'Reconnect';
+                console.log(socket.status, event.reason)
 
             };
 
-        } else {
+            } else {
 
-            alert("Your browser does not support Web Socket.");
+                alert("Your browser does not support Web Socket.");
 
+            }
         }
+
+        window.onload = function () {
+            initSocket();
+        };
 
         // Send Websocket data
 
@@ -207,23 +213,18 @@
 
             if (!window.WebSocket) { return; }
 
-            if (socket.readyState === WebSocket.OPEN) {
-
-                socket.send('<pre>' + message + '</pre>');
-
+            if (socket.readyState !== WebSocket.OPEN) {
+                socket.close();
+                initSocket();
             } else {
-
-                alert("The socket is not open.");
-
+                socket.send(message);
             }
 
         }
 
         function clear_value() {
-            var cls_respon = document.getElementById('result_content');
-            var cls_submit = document.getElementById('crash_log');
-            cls_submit.value = "";
-            cls_respon.innerHTML = "";
+            document.getElementById('result_content').innerHTML = "";
+            document.getElementById('crash_log').value = "";
         }
     </script>
     <body>
@@ -232,17 +233,17 @@
         <![endif]-->
 
         <div id="content_area">
-            <H1>Crash Parser</H1>
+            <H1>Crash Parser Online</H1>
             <form method="post" action="/push_crash" onsubmit="return false;">
             <div class="submit_view">
-                <textarea title="crash_log_to_submit" name="crash_log" id="crash_log" ></textarea>
+                <textarea title="crash_log_to_submit" name="crash_log" id="crash_log" spellcheck="false" ></textarea>
             </div>
             <div class="result_view">
                 <div id="result_content"></div>
             </div>
             <div style="clear:both"></div>
-            <button class="btn btn-1 btn-1e" type="button" id="btnSend" value="Submit it !" onclick="send(this.form.crash_log.value)">Submit</button>
-            <button class="btn btn-1 btn-1e" type="button" id="btnClear" value="Clear Values !" onclick="clear_value()">Clear</button>
+            <button class="btn btn-1 btn-1e" type="button" id="btnSend" onclick="send(this.form.crash_log.value)">Submit</button>
+            <button class="btn btn-1 btn-1e" type="button" id="btnClear" onclick="clear_value()">Clear</button>
             </form>
         </div>
     </body>

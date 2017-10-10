@@ -61,7 +61,7 @@ class DownloadDSYM(object):
         super(DownloadDSYM, self).__init__()
         self.proc = subproc.SubProcessBase()
         self.default_download_folder = os.path.join(
-            os.path.expanduser('~'), 'Downloads')
+            os.path.expanduser('~'), 'CrashParser', 'dSYM')
 
     def init_dSYM(self, build_id, version_number, version_type, product):
         """
@@ -128,7 +128,7 @@ class DownloadDSYM(object):
         """
         method_name = '%s_%s' % (product.lower(), version_type)
         print(method_name)
-        method = getattr(self, method_name, lambda: 'nothing')
+        method = getattr(self, method_name)
 
         return method(build_id=build_id, version_number=version_number, version_type=version_type, product=product)
 

@@ -97,7 +97,7 @@ class SimilarityCompute(object):
         :return: List object.
         """
         _after = str()
-        objectin = objectin.translate({ord(c): None for c in '<>!,.:'})
+        objectin = objectin.translate({ord(c): None for c in '<>!,.:"'})
         _hex_rm = self.hex_remove(objectin)
         _re_str = ' '.join(_hex_rm)
         for i in _re_str:
@@ -117,7 +117,7 @@ class SimilarityCompute(object):
         # Get wait compute data ready to match in sql.
         alpha_str = self.variable_remove(datain)
         for k, v in enumerate(alpha_str):
-            if v.__len__() > 7:
+            if v.__len__() > 6:
                 _first_match = sqlite_base.search(conn, cursor,
                                                   end=False,
                                                   columns='ROWID, COUNT, CONTENT',
@@ -161,7 +161,7 @@ class SimilarityCompute(object):
                                              table_name='statistics',
                                              columns=['COUNT', 'LAST_VERSION'],
                                              values=[_percent_of[-1][1] + 1, self.ver_info],
-                                             condition='where ID = %d' % _percent_of[-1][0])
+                                             condition='where rowid = %d' % _percent_of[-1][0])
                 print('100%')
                 sqlite_base.insert(conn, cursor,
                                    end=False,

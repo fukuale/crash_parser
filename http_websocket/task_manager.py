@@ -41,6 +41,7 @@
 
 import os
 
+# Cause IDE need parent folder name to import other class, shell need not.
 try:
     from similarity_compare import SimilarityCompute
     from get_crash_log import GetCrashInfoFromServer
@@ -62,7 +63,11 @@ class TaskSchedule(object):
         super(TaskSchedule, self).__init__()
         # Get configuration file, product name.
         self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'conf')
-        # Get all the configuration files under [CrashParser] path
+
+        # Get all the configuration files under [CrashParser] path, except invalid configuration files.
+        # os.walk to read all files name under target path.
+        # loop this files name list.
+        # filter data to append list.
         self.conf_files = [z for a, b, x in os.walk(self.conf_dir) for z in x if
                            not z.startswith('_') and not z.startswith('.')]
 
@@ -72,12 +77,19 @@ class TaskSchedule(object):
         self.dSYM_abspath = str()
         self.parser_wait_raw = str()
 
-        # Instance needed class
+        # Instance base class.
         self.get_log = GetCrashInfoFromServer()
         self.dSYM = DownloadDSYM()
 
-    # Generation the product name and version that need to parsing
     def gen_version_list(self):
+        """
+        Parsing configuration files on path "~/CrashParser/conf/".
+        Get what version need to parsing.
+        Generation tuple data.
+        :return:
+            0) vn.strip() : str(version_name), like: v1.9.5 (11311) appstore.
+            1) os.path.splitext(v)[0] : str(product_name)
+        """
         print(self.conf_files)
         for k, v in enumerate(self.conf_files):
             print(k, v)
@@ -88,12 +100,27 @@ class TaskSchedule(object):
 
     # Get the crash log generator
     def read_log_from_server(self):
+        """
+        Interpreter generator to get crash log from server.
+        Generation tuple data.
+        :return:
+            0) _c_log : crash log get generator.
+            1) version[1] : Inherited from read_log_from_server(), this is str(product_name)
+        """
         for version in self.gen_version_list():
             _c_log = self.get_log.get_crash_log(version=version[0])
             yield _c_log, version[1]
 
     # Reparsing verson enviornment information from crash log to generation version info, product name and crash log.
     def get_env_info(self):
+        """
+        Parsing a part of crash log information to get the environment information.
+        Generation tuple data.
+        :return:
+            0) env : [version_code, build_number, version_type]
+            1) _ver_info[1] : Inherited from read_log_from_server(), this is str(product_name)
+            2) _crash_info : tuple data. [0] is crash_id, like: if-2007876330-1507164162867, [1] is crash_log.
+        """
         for _ver_info in self.read_log_from_server():
             for _crash_info in _ver_info[0]:
                 print(_crash_info)
@@ -101,6 +128,10 @@ class TaskSchedule(object):
                 yield env, _ver_info[1], _crash_info
 
     def parsing(self):
+        """
+        Parsing crash log call.
+        :return: Nothing to return.
+        """
         for tuple_env_log in self.get_env_info():
             print('tuple_env_log', tuple_env_log)
             print(tuple_env_log[-1][0])
@@ -125,14 +156,7 @@ class TaskSchedule(object):
                                      crash_id=tuple_env_log[-1][0])
 
 
-
 if __name__ == '__main__':
-    process = []
 
-    # process.append(start_service)
     ts = TaskSchedule()
     ts.parsing()
-        # ts.test()
-        # ts.start_service()
-        # ts.dSYM_need_not()
-        # ts.parse()
