@@ -55,17 +55,45 @@ class ReportGenerator(object):
         self.statistic_sql = os.path.join(self.conf_dir, 'CrashCount.sqlite')
 
     @staticmethod
+    def get_today_timestamp(day=1):
+        today = datetime.datetime.today() - datetime.timedelta(day)
+        return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
+
+    @staticmethod
     def get_today_from_count():
-        today = datetime.datetime.today()
         conn, cursor = sqlite_base.sqlite_connect()
         _big_than = sqlite_base.search(conn, cursor,
-                                  columns='rowid',
-                                  table_name='statistics',
-                                  condition='where LAST_UPDATE > %s' % str(
-                                      int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple()))))
+                                       end=False,
+                                       columns='rowid',
+                                       table_name='statistics',
+                                       condition='where LAST_UPDATE > %s' % ReportGenerator.get_today_timestamp())
         print(_big_than)
+        return [x[0] for x in _big_than]
+
+    def get_crash_id(self):
+        _tables_id = self.get_today_from_count()
+        for table_id in _tables_id:
+            conn, cursor = sqlite_base.sqlite_connect()
+            _id_l = sqlite_base.search(conn, cursor,
+                                       columns='CRASH_ID',
+                                       table_name='backtrack_%d' % table_id,
+                                       condition='where INSERT_TIME > %s' % ReportGenerator.get_today_timestamp())
+            yield _id_l
+
+    def get_report_info(self):
+        for x in self.get_crash_id():
+            conn, cursor = sqlite_base.sqlite_connect('ReportInfo.sqlite')
+            print('x', x)
+            for crash_id in x:
+                print('crash_id[0]', crash_id[0])
+                _res = conn, cursor = sqlite_base.search(conn, cursor,
+                                                         end=False,
+                                                         columns='LOG',
+                                                         table_name='report',
+                                                         condition='where CRASH_ID = "%s"' % crash_id[0])
+                print(type(_res))
 
 
 if __name__ == '__main__':
     rg = ReportGenerator()
-    rg.get_today_from_count()
+    rg.get_report_info()
