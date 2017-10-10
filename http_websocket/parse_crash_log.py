@@ -45,16 +45,17 @@ try:
     import sqlite_base
 except ModuleNotFoundError as e:
     import http_websocket.subproc as subproc
-    from http_websocket import sqlite_base
+    import http_websocket.sqlite_base as sqlite_base
 
 
 class CrashParser:
     def __init__(self, productname, rawdata):
         super(CrashParser, self).__init__()
+        self.product_name = productname
+        self.report_sql = 'ReportInfo.sqlite'
         self.build_number = str()
         self.version_number = str()
         self.proc = subproc.SubProcessBase()
-        self.product_name = productname
         self.request_raw = bytes(rawdata)  # MUST DOCODE TO STRING BEFORE PARSING.
         self.request_lines = self.request_raw.decode().split('\n')  # SPLIT RAW DATA TO LIST
 
@@ -192,7 +193,7 @@ class CrashParser:
                            reason=','.join(reason_l),  # All crash information will be inserted to sql...
                            condition="where CRASH_ID = '%s'" % crash_id)
         # print the finally data after parsing
-        conn_db2, cursor_db2 = sqlite_base.sqlite_connect('report.sqlite')
+        conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
         sqlite_base.insert(conn_db2, cursor_db2,
                            table_name='report',
                            crash_id=crash_id,

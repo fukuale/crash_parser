@@ -45,7 +45,7 @@ import sqlite3
 import os
 
 
-def sqlite_connect(sql_name='crash_reason_count.sqlite'):
+def sqlite_connect(sql_name='CrashCount.sqlite'):
     """
 
     :return: Object sqlite Connection
