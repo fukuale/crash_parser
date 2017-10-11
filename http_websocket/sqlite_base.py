@@ -71,8 +71,7 @@ def create_base_table(conn, cursor, end=True):
     :return: Nothing to return
     """
     cursor.execute('''CREATE TABLE statistics
-        (FIXED INT NOT NULL,
-        COUNT INT NOT NULL,
+        (COUNT INT NOT NULL,
         CONTENT MESSAGE_TEXT NOT NULL,
         FIRST_VERSION MESSAGE_TEXT NOT NULL,
         LAST_VERSION MESSAGE_TEXT ,
@@ -110,6 +109,13 @@ def create_report_table(conn, cursor, end=True, **kwargs):
         conn.close()
 
 
+def create_reasons_table(conn, cursor, end=True, **kwargs):
+    cursor.execute('CREATE TABLE reasons(FIXED MESSAGE_TEXT , REASON MESSAGE_TEXT )')
+    if end:
+        cursor.close()
+        conn.close()
+
+
 def create_tables(conn, cursor, tablename, end=True, create=True):
     exist = "SELECT COUNT(*) FROM sqlite_master where type='table' and name='%s'" % tablename
     if cursor.execute(exist).fetchall()[0][0] == 1:
@@ -123,6 +129,9 @@ def create_tables(conn, cursor, tablename, end=True, create=True):
             return True
         elif create and tablename == 'report':
             create_report_table(conn, cursor, end=end)
+            return True
+        elif create and tablename == 'reasons':
+            create_reasons_table(conn, cursor, end=end)
             return True
         else:
             return False
@@ -141,7 +150,7 @@ def insert(conn, cursor, end=True, **kwargs):
     inse = str()
     if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
-            _inse_cmd_format = "INSERT INTO statistics(FIXED, COUNT, CONTENT, FIRST_VERSION, LAST_VERSION, LAST_UPDATE) values(?,?,?,?,?,?)"
+            _inse_cmd_format = "INSERT INTO statistics(COUNT, CONTENT, FIRST_VERSION, LAST_VERSION, LAST_UPDATE) values(?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
                            (kwargs['fixed'], kwargs['count'], kwargs['content'], kwargs['fv'], kwargs['lv'],
                             str(int(time.mktime(datetime.datetime.now().timetuple())))))
@@ -154,6 +163,9 @@ def insert(conn, cursor, end=True, **kwargs):
         elif kwargs['table_name'] == 'report':
             _inse_cmd_format = "INSERT INTO report(CRASH_ID, LOG) values(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['crash_id'], kwargs['log']))
+        elif kwargs['table_name'] == 'reasons':
+            _inse_cmd_format = "INSERT INTO reason(REASON) VALUE(?)"
+            cursor.execute(_inse_cmd_format, kwargs['reason'])
 
     _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
     cursor.execute(inse)
@@ -175,19 +187,23 @@ def update(conn, cursor, end=True, **kwargs):
     :param kwargs:
     :return:
     """
-    _udpate_sql = 'UPDATE %s SET ' % kwargs['table_name']
+    _update_sql = 'UPDATE %s SET ' % kwargs['table_name']
     print('kwargs****', kwargs)
 
     if 'columns' in kwargs.keys():
         for _index, _value in enumerate(kwargs['columns']):
             if _index >= 1:
-                _udpate_sql += ', '
-            _udpate_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
+                _update_sql += ', '
+            if 'COUNT' == _value:
+                _update_sql += 'COUNT = COUNT+1'
+            else:
+                _update_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
+        _update_sql += kwargs['condition']
 
     elif 'reason' in kwargs.keys():
-        _udpate_sql += "%s = \'%s\'" % ('REASON', kwargs['reason'])
+        _update_sql += "%s = \'%s\' %s" % ('REASON', kwargs['reason'], kwargs['condition'])
 
-    cursor.execute(_udpate_sql)
+    cursor.execute(_update_sql)
     conn.commit()
 
     _row_id_update = search(conn, cursor,

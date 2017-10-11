@@ -120,7 +120,7 @@ class SimilarityCompute(object):
             if v.__len__() > 6:
                 _first_match = sqlite_base.search(conn, cursor,
                                                   end=False,
-                                                  columns='ROWID, COUNT, CONTENT',
+                                                  columns='ROWID, CONTENT',
                                                   table_name='statistics',
                                                   condition="where CONTENT LIKE \'%%%s%%\'" % alpha_str[0])
         # Insert apple locate reason if not matched.
@@ -128,7 +128,6 @@ class SimilarityCompute(object):
             _row_id = sqlite_base.insert(conn, cursor,
                                          end=False,
                                          table_name='statistics',
-                                         fixed=0,
                                          count=1,
                                          content=datain,
                                          fv=self.ver_info,
@@ -148,7 +147,7 @@ class SimilarityCompute(object):
                 _sql_only_str = self.variable_remove(i[-1])
 
                 # Compare two list similarity percentage.
-                _percent_of.append((i[0], i[1], i[2], self.compute_similarity(alpha_str, _sql_only_str)))
+                _percent_of.append((i[0], i[1], self.compute_similarity(alpha_str, _sql_only_str)))
                 print('_percent_of', _percent_of, '\n', alpha_str, _sql_only_str)
             # Sorted by percentage.
             _percent_of = sorted(_percent_of, key=lambda x: (x[-1]))
@@ -160,7 +159,7 @@ class SimilarityCompute(object):
                                              end=False,
                                              table_name='statistics',
                                              columns=['COUNT', 'LAST_VERSION'],
-                                             values=[_percent_of[-1][1] + 1, self.ver_info],
+                                             values=[0, self.ver_info],  # count have to set one character.
                                              condition='where rowid = %d' % _percent_of[-1][0])
                 print('100%')
                 sqlite_base.insert(conn, cursor,
@@ -171,7 +170,6 @@ class SimilarityCompute(object):
                 _row_id = sqlite_base.insert(conn, cursor,
                                              end=False,
                                              table_name='statistics',
-                                             fixed=0,
                                              count=1,
                                              content=datain,
                                              fv=self.ver_info,
