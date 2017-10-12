@@ -128,11 +128,14 @@ class CrashParser:
 
                 stacktrace_list.append(less_line)
         print('stacktrace_list', stacktrace_list)
-        if len(stacktrace_list[-1][3]) == 10:
+        if stacktrace_list:
+            if len(stacktrace_list[-1][3]) == 10:
 
-            return stacktrace_list, 'armv7'
+                return stacktrace_list, 'armv7'
+            else:
+                return stacktrace_list, 'arm64'
         else:
-            return stacktrace_list, 'arm64'
+            return 0, 0
 
     def atos_run(self, dSYM_file, product_name, tableid, crash_id):
         """
@@ -153,6 +156,8 @@ class CrashParser:
         # call get_crash_list to filter what data need to parsing.
         stacktrace_list, cpu_arm_ = self.get_crash_list()
 
+        if not stacktrace_list:
+            return
         # enumerate wait to parsing data
         for _index, _value in enumerate(stacktrace_list):
             print('enumerate', _index, _value)
@@ -187,16 +192,16 @@ class CrashParser:
             else:
                 self.request_lines[line_id] = replace_data
 # Crash information insert to sql
-        conn, cursor = sqlite_base.sqlite_connect()
-        sqlite_base.update(conn, cursor,
-                           table_name='backtrack_%d' % tableid,
-                           reason=','.join(reason_l),  # All crash information will be inserted to sql...
-                           condition="where CRASH_ID = '%s'" % crash_id)
-        # print the finally data after parsing
-        conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
-        sqlite_base.insert(conn_db2, cursor_db2,
-                           table_name='report',
-                           crash_id=crash_id,
-                           log='\n'.join(self.request_lines))  # All crash information will be inserted to sql...
-        print('\n'.join(self.request_lines))
+            if tableid:
+                conn, cursor = sqlite_base.sqlite_connect()
+                sqlite_base.update(conn, cursor,
+                                   table_name='backtrack_%d' % tableid,
+                                   reason=','.join(reason_l),  # All crash information will be inserted to sql...
+                                   condition="where CRASH_ID = '%s'" % crash_id)
+                # print the finally data after parsing
+                conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
+                sqlite_base.insert(conn_db2, cursor_db2,
+                                   table_name='report',
+                                   crash_id=crash_id,
+                                   log='\n'.join(self.request_lines))  # All crash information will be inserted to sql...
         return '\n'.join(self.request_lines)

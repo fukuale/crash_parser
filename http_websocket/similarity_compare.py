@@ -97,7 +97,7 @@ class SimilarityCompute(object):
         :return: List object.
         """
         _after = str()
-        objectin = objectin.translate({ord(c): None for c in '<>!,.:"'})
+        objectin = objectin.translate({ord(c): ' ' for c in '<>();!,.:+-[]_"'})
         _hex_rm = self.hex_remove(objectin)
         _re_str = ' '.join(_hex_rm)
         for i in _re_str:

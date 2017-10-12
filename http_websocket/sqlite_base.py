@@ -45,12 +45,21 @@ import sqlite3
 import os
 
 
-def sqlite_connect(sql_name='CrashCount.sqlite'):
+def get_today_timestamp(day=1):
+    today = datetime.datetime.today() - datetime.timedelta(day)
+    return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
+
+
+def sqlite_connect(sql_name='CrashCount.sqlite', sql_abs_path=0):
     """
 
     :return: Object sqlite Connection
     """
-    sql_path = os.path.join(os.path.expanduser('~'), 'CrashParser', 'database', sql_name)
+    sql_path = str()
+    if not sql_abs_path:
+        sql_path = os.path.join(os.path.expanduser('~'), 'CrashParser', 'database', sql_name)
+    else:
+        sql_path = sql_abs_path
     # conn = sqlite3.connect(':memory:')
     conn = sqlite3.connect(sql_path)
     if conn:
@@ -75,7 +84,8 @@ def create_base_table(conn, cursor, end=True):
         CONTENT MESSAGE_TEXT NOT NULL,
         FIRST_VERSION MESSAGE_TEXT NOT NULL,
         LAST_VERSION MESSAGE_TEXT ,
-        LAST_UPDATE MESSAGE_TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP));''')
+        INSERT_TIME MESSAGE_TEXT NOT NULL,
+        LAST_UPDATE MESSAGE_TEXT );''')
     print('table statistics create successfully . . .')
     if end:
         cursor.close()
@@ -92,8 +102,8 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     :return: Nothing to return
     """
     cursor.execute(
-        'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT);' %
-        kwargs['id'])
+        'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL,\
+          LAST_UPDATE MESSAGE_TEXT );' % kwargs['id'])
     print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
@@ -110,7 +120,7 @@ def create_report_table(conn, cursor, end=True, **kwargs):
 
 
 def create_reasons_table(conn, cursor, end=True, **kwargs):
-    cursor.execute('CREATE TABLE reasons(FIXED MESSAGE_TEXT , REASON MESSAGE_TEXT )')
+    cursor.execute('CREATE TABLE reasons(REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL)')
     if end:
         cursor.close()
         conn.close()
@@ -150,22 +160,20 @@ def insert(conn, cursor, end=True, **kwargs):
     inse = str()
     if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
-            _inse_cmd_format = "INSERT INTO statistics(COUNT, CONTENT, FIRST_VERSION, LAST_VERSION, LAST_UPDATE) values(?,?,?,?,?)"
+            _inse_cmd_format = "INSERT INTO statistics(COUNT, CONTENT, FIRST_VERSION, LAST_VERSION, INSERT_TIME, LAST_UPDATE) values(?,?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
-                           (kwargs['fixed'], kwargs['count'], kwargs['content'], kwargs['fv'], kwargs['lv'],
-                            str(int(time.mktime(datetime.datetime.now().timetuple())))))
+                           (kwargs['count'], kwargs['content'], kwargs['fv'], kwargs['lv'], get_today_timestamp(), get_today_timestamp()))
 
         elif kwargs['table_name'].startswith('backtrack_'):
             _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, INSERT_TIME) values(?,?)" % kwargs['table_name']
             print('inse_cmd_format', _inse_cmd_format_, kwargs['crash_id'])
-            cursor.execute(_inse_cmd_format_, (kwargs['crash_id'],
-                                               str(int(time.mktime(datetime.datetime.now().timetuple())))))
+            cursor.execute(_inse_cmd_format_, (kwargs['crash_id'], get_today_timestamp()))
         elif kwargs['table_name'] == 'report':
             _inse_cmd_format = "INSERT INTO report(CRASH_ID, LOG) values(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['crash_id'], kwargs['log']))
         elif kwargs['table_name'] == 'reasons':
-            _inse_cmd_format = "INSERT INTO reason(REASON) VALUE(?)"
-            cursor.execute(_inse_cmd_format, kwargs['reason'])
+            _inse_cmd_format = "INSERT INTO reason(REASON, INSERT_TIME VALUE(?,?)"
+            cursor.execute(_inse_cmd_format, (kwargs['reason'], get_today_timestamp()))
 
     _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
     cursor.execute(inse)
@@ -198,10 +206,12 @@ def update(conn, cursor, end=True, **kwargs):
                 _update_sql += 'COUNT = COUNT+1'
             else:
                 _update_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
-        _update_sql += kwargs['condition']
+        _update_sql += ", LAST_UPDATE = \'%s\' " % str(int(time.mktime(datetime.datetime.now().timetuple()))) + kwargs[
+            'condition']
 
     elif 'reason' in kwargs.keys():
-        _update_sql += "%s = \'%s\' %s" % ('REASON', kwargs['reason'], kwargs['condition'])
+        _update_sql += "%s = \'%s\', LAST_UPDATE = \'%s\' %s" % ('REASON', kwargs['reason'], get_today_timestamp(), kwargs[
+            'condition'])
 
     cursor.execute(_update_sql)
     conn.commit()
