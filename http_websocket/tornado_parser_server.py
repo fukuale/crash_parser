@@ -40,6 +40,8 @@
 import os
 
 import time
+from urllib import parse, request
+
 import tornado.options
 import tornado.ioloop
 import tornado.httpserver
@@ -52,10 +54,12 @@ from tornado.websocket import WebSocketHandler
 try:
     from init_dsym import DownloadDSYM
     from parse_crash_log import CrashParser
+    from get_crash_log import GetCrashInfoFromServer
     from similarity_compare import SimilarityCompute
 except ModuleNotFoundError:
     from http_websocket.init_dsym import DownloadDSYM
     from http_websocket.parse_crash_log import CrashParser
+    from http_websocket.get_crash_log import GetCrashInfoFromServer
     from http_websocket.similarity_compare import SimilarityCompute
 
 define('port', default=7724, type=int)
@@ -105,13 +109,14 @@ class SetWebConf(WebSocketHandler):
 class ParsingLog(object):
     def __init__(self):
         self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'conf', '_web_parser.conf')
-        self.data_res = str()
+        # self.data_res = str()
 
     def get_product_name(self, raw_data):
         temp = open(self.conf_dir).readlines()
         for name in temp:
-            if raw_data.find(name):
-                return name.strip()
+            name = name.strip()
+            if raw_data.find(name) >= 0:
+                return name
             else:
                 return False
 
@@ -121,30 +126,48 @@ class ParsingLog(object):
 
     def parsing(self, raw_data):
         p_name = self.get_product_name(raw_data)
-        raw_data = raw_data.encode()
-        print(raw_data)
-        env, r_data = self.get_env_info(raw_data)
-        if env and r_data and raw_data and p_name:
-            dd = DownloadDSYM()
-            res_dSYM = dd.init_dSYM(version_number=env[0],
-                                    build_id=env[1],
-                                    version_type=env[-1],
-                                    product=p_name)
-            if res_dSYM:
-                _reason = CrashParser.get_apple_reason(bytes_in=raw_data)
+        if p_name:
+            raw_data = raw_data.encode()
+            print(raw_data)
+            env, r_data = self.get_env_info(raw_data)
+            if env and r_data and raw_data and p_name:
+                dd = DownloadDSYM()
+                res_dSYM = dd.init_dSYM(version_number=env[0],
+                                        build_id=env[1],
+                                        version_type=env[-1],
+                                        product=p_name)
+                if res_dSYM:
+                    # _reason = CrashParser.get_apple_reason(bytes_in=raw_data)
+                    # sc = SimilarityCompute(versioninfo=env[0], crashid='0000000000')
+                    # _row_id = sc.apple_locate_similarity(_reason)
 
-                sc = SimilarityCompute(versioninfo=env[0], crashid='0000000000')
-                _row_id = sc.apple_locate_similarity(_reason)
-
-                _ins_parser = CrashParser(productname=p_name, rawdata=raw_data)
-                self.data_res = _ins_parser.atos_run(dSYM_file=res_dSYM,
+                    _ins_parser = CrashParser(productname=p_name, rawdata=raw_data)
+                    _data_res = _ins_parser.atos_run(dSYM_file=res_dSYM,
                                                      product_name=p_name,
-                                                     tableid=_row_id,
+                                                     tableid=0,
                                                      crash_id='0000000000')
-                print(self.data_res)
-            return self.data_res
+                    if _data_res:
+                        return _data_res.replace('<pre>', '').replace('</pre>', '').replace('<', '&lt;').replace('>', '&gt;')
+                    else:
+                        return 'Look like log losing number of important stack symbols line..'
+            else:
+                return 'Look like log losing a part of content.'
         else:
-            return False
+            if raw_data.startswith('http'):
+                param = {'row': os.path.split(raw_data)[-1]}
+
+                parm_encode = parse.urlencode(param).encode('utf-8')
+
+                crash_page = request.Request(
+                    url='http://gdata.linkmessenger.com/index.php/Admin/Api/appErrorInfo',
+                    data=parm_encode
+                )
+
+                crash_content = request.urlopen(crash_page).read()
+                _data_res = self.parsing(crash_content.decode())
+                return _data_res
+            else:
+                return 'Can\'t read environment information from this log content. \nCheck it manually !'
 
 
 def run():
