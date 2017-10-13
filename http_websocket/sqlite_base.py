@@ -172,7 +172,7 @@ def insert(conn, cursor, end=True, **kwargs):
             _inse_cmd_format = "INSERT INTO report(CRASH_ID, LOG) values(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['crash_id'], kwargs['log']))
         elif kwargs['table_name'] == 'reasons':
-            _inse_cmd_format = "INSERT INTO reason(REASON, INSERT_TIME VALUE(?,?)"
+            _inse_cmd_format = "INSERT INTO reasons(REASON, INSERT_TIME) VALUES(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['reason'], get_today_timestamp()))
 
     _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
