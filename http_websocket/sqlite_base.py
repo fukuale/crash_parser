@@ -45,8 +45,8 @@ import sqlite3
 import os
 
 
-def get_today_timestamp(day=1):
-    today = datetime.datetime.today() - datetime.timedelta(day)
+def get_today_timestamp(day=10):
+    today = datetime.datetime.today() - datetime.timedelta(day) - datetime.timedelta(hours=4)
     return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
 
 
@@ -126,6 +126,13 @@ def create_reasons_table(conn, cursor, end=True, **kwargs):
         conn.close()
 
 
+def create_unmatch_table(conn, cursor, end=True, **kwargs):
+    cursor.execute('CREATE TABLE unmatch(CRASH_ID MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL)')
+    if end:
+        cursor.close()
+        conn.close()
+
+
 def create_tables(conn, cursor, tablename, end=True, create=True):
     exist = "SELECT COUNT(*) FROM sqlite_master where type='table' and name='%s'" % tablename
     if cursor.execute(exist).fetchall()[0][0] == 1:
@@ -142,6 +149,9 @@ def create_tables(conn, cursor, tablename, end=True, create=True):
             return True
         elif create and tablename == 'reasons':
             create_reasons_table(conn, cursor, end=end)
+            return True
+        elif create and tablename == 'unmatch':
+            create_unmatch_table(conn, cursor, end=end)
             return True
         else:
             return False
@@ -174,6 +184,9 @@ def insert(conn, cursor, end=True, **kwargs):
         elif kwargs['table_name'] == 'reasons':
             _inse_cmd_format = "INSERT INTO reasons(REASON, INSERT_TIME) VALUES(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['reason'], get_today_timestamp()))
+        elif kwargs['table_name'] == 'unmatch':
+            _inse_cmd_format = "INSERT INTO unmatch(CRASH_ID, INSERT_TIME) VALUES(?,?)"
+            cursor.execute(_inse_cmd_format, (kwargs['crash_id'], get_today_timestamp()))
 
     _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
     cursor.execute(inse)

@@ -178,50 +178,33 @@ class ReportGenerator(SimilarityCompute):
                                                           columns='REASON',
                                                           table_name='reasons',
                                                           condition='where rowid >= %d and rowid <= %d' % (_start, ind[-1]))
-                    yield [(_rows, _reason[0]) for _reason in _part_reason]
+                    yield [_reason[0] for _reason in _part_reason]
 
                     _start += _step
-        else:
-            yield False
 
     def match_reason(self):
         conn, cursor = sqlite_base.sqlite_connect('Reasons.sqlite')
         _income_reason_onlly = self.get_crash_reason_only()
-        _rows_c = 0
+
+        for _s_r in self.search_sql_reason(conn, cursor):
+            if _s_r:
+                for _s_r_s in _s_r:
+                    _s_clear = self.variable_remove(_s_r_s)
+                    for _iro_key, _iro_value in enumerate(_income_reason_onlly):
+                        _iro_clear = self.variable_remove(_iro_value[-1])
+                        _sim_percent = self.compute_similarity(_iro_clear, _s_clear)
+                        if 1 == _sim_percent:
+                            del _income_reason_onlly[_iro_key]
         if _income_reason_onlly:
-            for _iro_key, _iro_value in enumerate(_income_reason_onlly):
-                _iro_clear = self.variable_remove(_iro_value[-1])
-
-                for _s_r in self.search_sql_reason(conn, cursor):
-
-                    if _s_r:
-                        for _s_r_s in _s_r:
-                            print('_only_re', len(_income_reason_onlly))
-                            print('_s_r', len(_s_r))
-                            _s_clear = self.variable_remove(_s_r_s[-1])
-
-                            _sim_percent = self.compute_similarity(_iro_clear, _s_clear)
-
-                            if 1 == _sim_percent:
-                                del _income_reason_onlly[_iro_key]
-                                break
-
-                            if -1 == _rows_c - _s_r_s[0][0][0]:
-                                _is = sqlite_base.insert(conn, cursor,
-                                                         end=False,
-                                                         table_name='reasons',
-                                                         reason=_iro_value[-1])
-                                conn.commit()
-                                if not _is:
-                                    # TODO ERROR LOGIC. RECALL INSERT TRANSACTION. RETRY.
-                                    pass
-                            _rows_c += 1
-                    else:
-                        sqlite_base.insert(conn, cursor,
-                                           end=False,
-                                           table_name='reasons',
-                                           reason=_iro_value[-1])
-        return _income_reason_onlly
+            for _new in _income_reason_onlly:
+                _is = sqlite_base.insert(conn, cursor,
+                                         end=False,
+                                         table_name='reasons',
+                                         reason=_new[-1])
+                print('inserted, rowid: ', _is, 'content', _new[-1])
+            return _income_reason_onlly
+        else:
+            return []
 
     def gen_csv_report(self):
         _only_crash_id_l = self.match_reason()

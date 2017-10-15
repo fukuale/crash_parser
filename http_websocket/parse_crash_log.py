@@ -157,6 +157,10 @@ class CrashParser:
         stacktrace_list, cpu_arm_ = self.get_crash_list()
 
         if not stacktrace_list:
+            conn, cursor = sqlite_base.sqlite_connect()
+            sqlite_base.insert(conn, cursor,
+                               table_name='unmatch',
+                               crash_id=crash_id)
             return
         # enumerate wait to parsing data
         for _index, _value in enumerate(stacktrace_list):
