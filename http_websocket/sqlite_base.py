@@ -46,8 +46,8 @@ import os
 
 
 def get_today_timestamp(day=10):
-    today = datetime.datetime.today() - datetime.timedelta(day) - datetime.timedelta(hours=4)
-    return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
+    today = datetime.datetime.today() - datetime.timedelta(days=day) + datetime.timedelta(hours=3)
+    return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, today.hour, today.minute, today.second).timetuple())))
 
 
 def sqlite_connect(sql_name='CrashCount.sqlite', sql_abs_path=0):
@@ -219,7 +219,7 @@ def update(conn, cursor, end=True, **kwargs):
                 _update_sql += 'COUNT = COUNT+1'
             else:
                 _update_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
-        _update_sql += ", LAST_UPDATE = \'%s\' " % str(int(time.mktime(datetime.datetime.now().timetuple()))) + kwargs[
+        _update_sql += ", LAST_UPDATE = \'%s\' " % get_today_timestamp() + kwargs[
             'condition']
 
     elif 'reason' in kwargs.keys():
