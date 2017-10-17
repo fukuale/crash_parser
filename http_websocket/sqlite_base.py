@@ -166,7 +166,6 @@ def insert(conn, cursor, end=True, **kwargs):
     :param kwargs: Included arg1: table_name, arg2: count, arg3:content, arg4:fv, arg5:lv, arg6:uptime
     :return:
     """
-    print('insert kwargs', kwargs)
     inse = str()
     if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
@@ -176,7 +175,6 @@ def insert(conn, cursor, end=True, **kwargs):
 
         elif kwargs['table_name'].startswith('backtrack_'):
             _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, INSERT_TIME) values(?,?)" % kwargs['table_name']
-            print('inse_cmd_format', _inse_cmd_format_, kwargs['crash_id'])
             cursor.execute(_inse_cmd_format_, (kwargs['crash_id'], get_today_timestamp()))
         elif kwargs['table_name'] == 'report':
             _inse_cmd_format = "INSERT INTO report(CRASH_ID, LOG) values(?,?)"
@@ -209,7 +207,6 @@ def update(conn, cursor, end=True, **kwargs):
     :return:
     """
     _update_sql = 'UPDATE %s SET ' % kwargs['table_name']
-    print('kwargs****', kwargs)
 
     if 'columns' in kwargs.keys():
         for _index, _value in enumerate(kwargs['columns']):

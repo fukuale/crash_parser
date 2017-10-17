@@ -60,7 +60,7 @@ class ReportGenerator(SimilarityCompute):
         self.statistic_sql = os.path.join(self.conf_dir, 'CrashCount.sqlite')
 
     @staticmethod
-    def get_today_timestamp(day=8):
+    def get_today_timestamp(day=9):
         today = datetime.datetime.today() - datetime.timedelta(day)
         return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
 
@@ -74,7 +74,6 @@ class ReportGenerator(SimilarityCompute):
                                        columns='rowid',
                                        table_name='statistics',
                                        condition='where LAST_UPDATE > %s' % ReportGenerator.get_today_timestamp())
-        print(_big_than)
         if _big_than:
             return [x[0] for x in _big_than]
         else:
@@ -90,12 +89,12 @@ class ReportGenerator(SimilarityCompute):
         _tables_id = self.get_today_from_count()
         if _tables_id:
             for table_id in _tables_id:
-                print('table id', table_id)
                 conn, cursor = sqlite_base.sqlite_connect(sql_abs_path=self.statistic_sql)
                 _new_reason = sqlite_base.search(conn, cursor,
                                                  columns='CRASH_ID, REASON',
                                                  table_name='backtrack_%d' % table_id,
-                                                 condition='where INSERT_TIME > %s' % ReportGenerator.get_today_timestamp())
+                                                 condition='where INSERT_TIME > %s and REASON NOT NULL' %
+                                                           ReportGenerator.get_today_timestamp())
                 if _new_reason:
                     for _x_reason in _new_reason:
                         yield _x_reason  # one of list data per table.
@@ -140,11 +139,11 @@ class ReportGenerator(SimilarityCompute):
         if step and step < end:
             _ran = (end - start) // step
             if _ran != end / step:
-                yield _ran, (end - start) % step
+                yield _ran + 1, end
             else:
-                yield _ran, 0
+                yield _ran + 1, 0
         else:
-            yield 1, end
+            yield start, end
 
     @staticmethod
     def search_sql_reason(conn, cursor, _step=30, _start=1):
@@ -156,16 +155,15 @@ class ReportGenerator(SimilarityCompute):
         :return: Reasons list.
         """
 
-        _rows = sqlite_base.search(conn, cursor,
-                                   end=False,
-                                   columns='count(REASON)',
-                                   table_name='reasons',
-                                   condition='')
-        if _rows:
-            for ind in ReportGenerator.range_len_gen(_start, _rows[0][0], _step):
+        _rows_count = sqlite_base.search(conn, cursor,
+                                         end=False,
+                                         columns='count(REASON)',
+                                         table_name='reasons',
+                                         condition='')
+        if _rows_count:
+            for ind in ReportGenerator.range_len_gen(_start, _rows_count[0][0], _step):
                 for i in range(_start, ind[0] + 1):
-                    print(ind[0], _start)
-                    if ind[0] > _start:
+                    if (ind[0] - _start) > 1:
                         _part_reason = sqlite_base.search(conn, cursor,
                                                           end=False,
                                                           columns='REASON',
@@ -177,7 +175,8 @@ class ReportGenerator(SimilarityCompute):
                                                           end=False,
                                                           columns='REASON',
                                                           table_name='reasons',
-                                                          condition='where rowid >= %d and rowid <= %d' % (_start, ind[-1]))
+                                                          condition='where rowid >= %d and rowid <= %d' % (
+                                                              _start, ind[-1]))
                     yield [_reason[0] for _reason in _part_reason]
 
                     _start += _step
@@ -186,6 +185,7 @@ class ReportGenerator(SimilarityCompute):
         conn, cursor = sqlite_base.sqlite_connect('Reasons.sqlite')
         _income_reason_onlly = self.get_crash_reason_only()
 
+        sh = 0
         for _s_r in self.search_sql_reason(conn, cursor):
             if _s_r:
                 for _s_r_s in _s_r:
@@ -195,13 +195,13 @@ class ReportGenerator(SimilarityCompute):
                         _sim_percent = self.compute_similarity(_iro_clear, _s_clear)
                         if 1 == _sim_percent:
                             del _income_reason_onlly[_iro_key]
+                            sh += 1
         if _income_reason_onlly:
             for _new in _income_reason_onlly:
                 _is = sqlite_base.insert(conn, cursor,
                                          end=False,
                                          table_name='reasons',
                                          reason=_new[-1])
-                print('inserted, rowid: ', _is, 'content', _new[-1])
             return _income_reason_onlly
         else:
             return []

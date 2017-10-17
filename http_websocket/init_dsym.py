@@ -127,7 +127,6 @@ class DownloadDSYM(object):
         :return: getattr call corresponding method. The corresponding method return a download link.
         """
         method_name = '%s_%s' % (product.lower(), version_type)
-        print(method_name)
         method = getattr(self, method_name)
 
         return method(build_id=build_id, version_number=version_number, version_type=version_type, product=product)
@@ -148,7 +147,6 @@ class DownloadDSYM(object):
         :param kwargs: Accept 1)version_number, 2)build_id
         :return: String object. download link
         """
-        print(kwargs)
         self._abs_dSYM = 'WeGamers_Enterprise_v%s\(r%s\)-dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(

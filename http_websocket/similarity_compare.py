@@ -122,7 +122,8 @@ class SimilarityCompute(object):
                                                   end=False,
                                                   columns='ROWID, CONTENT',
                                                   table_name='statistics',
-                                                  condition="where CONTENT LIKE \'%%%s%%\'" % alpha_str[0])
+                                                  condition="where CONTENT LIKE \'%%%s%%\'" % v)
+                break
         # Insert apple locate reason if not matched.
         if not _first_match:
             _row_id = sqlite_base.insert(conn, cursor,
@@ -148,7 +149,6 @@ class SimilarityCompute(object):
 
                 # Compare two list similarity percentage.
                 _percent_of.append((i[0], i[1], self.compute_similarity(alpha_str, _sql_only_str)))
-                print('_percent_of', _percent_of, '\n', alpha_str, _sql_only_str)
             # Sorted by percentage.
             _percent_of = sorted(_percent_of, key=lambda x: (x[-1]))
 
@@ -161,7 +161,6 @@ class SimilarityCompute(object):
                                              columns=['COUNT', 'LAST_VERSION'],
                                              values=[0, self.ver_info],  # count have to set one character.
                                              condition='where rowid = %d' % _percent_of[-1][0])
-                print('100%')
                 sqlite_base.insert(conn, cursor,
                                    end=False,
                                    table_name='backtrack_%d' % _percent_of[-1][0],

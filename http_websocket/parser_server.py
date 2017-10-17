@@ -61,7 +61,6 @@ class Paser_Service(object):
         conn.setblocking(False)
         conn.settimeout(0.2)
         self.receive_data(conn=conn)
-        print(self.buff)
         conn.sendall(self.buff)
 
         conn.close()

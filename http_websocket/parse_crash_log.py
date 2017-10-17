@@ -88,7 +88,6 @@ class CrashParser:
         # Get info
         for i in content:
             if 'version' in i:
-                print(i)
                 version_code = version.search(i)
                 build_number = build.findall(i)
                 if type.findall(i)[0] == '正式版':
@@ -127,7 +126,6 @@ class CrashParser:
                              _memory_addr_stack, _memory_addr_start, line[-1]]
 
                 stacktrace_list.append(less_line)
-        print('stacktrace_list', stacktrace_list)
         if stacktrace_list:
             if len(stacktrace_list[-1][3]) == 10:
 
@@ -164,7 +162,6 @@ class CrashParser:
             return
         # enumerate wait to parsing data
         for _index, _value in enumerate(stacktrace_list):
-            print('enumerate', _index, _value)
 
             # Pick memory address
             line_id = _value[0]
@@ -189,8 +186,6 @@ class CrashParser:
             # Replace result to finally data
             replace_data = '   '.join([
                 stacktrac_id, produce_name_raw, memory_addr, offset, result])
-            print('replace_data', 'target line', line_id, 'data:\n', replace_data)
-            print('self.data_lines[line_id]', self.request_lines[line_id])
             if '\t' in self.request_lines[line_id]:
                 self.request_lines[line_id] = '\t' + replace_data
             else:

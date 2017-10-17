@@ -90,9 +90,7 @@ class TaskSchedule(object):
             0) vn.strip() : str(version_name), like: v1.9.5 (11311) appstore.
             1) os.path.splitext(v)[0] : str(product_name)
         """
-        print(self.conf_files)
         for k, v in enumerate(self.conf_files):
-            print(k, v)
             _v_list = open(os.path.join(self.conf_dir, v), 'r', encoding='utf-8').readlines()
             for vn in _v_list:
                 if vn:
@@ -123,7 +121,6 @@ class TaskSchedule(object):
         """
         for _ver_info in self.read_log_from_server():
             for _crash_info in _ver_info[0]:
-                print(_crash_info)
                 env = CrashParser.get_env_info(_crash_info[-1])
                 yield env, _ver_info[1], _crash_info
 
@@ -133,8 +130,6 @@ class TaskSchedule(object):
         :return: Nothing to return.
         """
         for tuple_env_log in self.get_env_info():
-            print('tuple_env_log', tuple_env_log)
-            print(tuple_env_log[-1][0])
             _dsym_parms = tuple_env_log[0]
             res_dSYM = self.dSYM.init_dSYM(version_number=_dsym_parms[0],
                                            build_id=_dsym_parms[1],
@@ -143,11 +138,9 @@ class TaskSchedule(object):
             print('res_dSYM', res_dSYM)
             if res_dSYM:
                 _reason = CrashParser.get_apple_reason(bytes_in=tuple_env_log[-1][-1])
-                print('_reason', _reason)
 
                 sc = SimilarityCompute(versioninfo=_dsym_parms[0], crashid=tuple_env_log[-1][0])
                 _row_id = sc.apple_locate_similarity(_reason)
-                print('_row_id', _row_id)
 
                 _ins_parser = CrashParser(productname=tuple_env_log[1], rawdata=tuple_env_log[-1][-1])
                 _ins_parser.atos_run(dSYM_file=res_dSYM,

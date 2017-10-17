@@ -128,7 +128,6 @@ class ParsingLog(object):
         p_name = self.get_product_name(raw_data)
         if p_name:
             raw_data = raw_data.encode()
-            print(raw_data)
             env, r_data = self.get_env_info(raw_data)
             if env and r_data and raw_data and p_name:
                 dd = DownloadDSYM()

@@ -17,6 +17,7 @@ except ModuleNotFoundError as e:
 
 yesteday = str(datetime.date.today() - datetime.timedelta(1))
 
+
 class GetCrashInfoFromServer(object):
     """docstring for GetCrashInfoFromServer"""
 
@@ -60,7 +61,6 @@ class GetCrashInfoFromServer(object):
             url=self.get_ids_url,
             data=url_params
         )
-        print('list_params', self.get_ids_url, url_params)
         task_list = request.urlopen(list_params).read()
         if task_list:
             return eval(task_list)
@@ -73,7 +73,6 @@ class GetCrashInfoFromServer(object):
         task_ids = self.get_task_list(version=version, date=date)
         if task_ids:
             for task_id in task_ids:
-                print('task list' + ', '.join(task_ids) + '\n' + task_id)
                 param = {'row': task_id}
 
                 parm_encode = parse.urlencode(param).encode('utf-8')
