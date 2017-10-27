@@ -74,7 +74,7 @@ class CrashParser:
                 _id -= 1
 
     @staticmethod
-    def get_env_info(bytes_in):
+    def get_ver_info(data_in):
         """
         Get application information from crash content.
         :return: List object. 1)version code, 2)build number, 3)version type
@@ -83,7 +83,13 @@ class CrashParser:
         version = re.compile(r'\d+(\.\d+){0,2}')  # version code
         build = re.compile(r'[\d]+')  # Consecutive numbers (for build number)
         type = re.compile(r'[\u4e00-\u9fa5]+')  # Match chinese (for version type)
-        content = bytes_in.decode().split('\n')
+        content = list()
+        if isinstance(data_in, bytes):
+            content = data_in.decode().split('\n')
+        elif isinstance(data_in, str):
+            content = data_in.split('\n')
+        elif isinstance(data_in, list):
+            content = data_in
 
         # Get info
         for i in content:

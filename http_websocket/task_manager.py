@@ -103,7 +103,7 @@ class TaskSchedule(object):
         Generation tuple data.
         :return:
             0) _c_log : crash log get generator.
-            1) version[1] : Inherited from read_log_from_server(), this is str(product_name)
+            1) version[1] : this is str(product_name)
         """
         for version in self.gen_version_list():
             _c_log = self.get_log.get_crash_log(version=version[0])
@@ -116,12 +116,12 @@ class TaskSchedule(object):
         Generation tuple data.
         :return:
             0) env : [version_code, build_number, version_type]
-            1) _ver_info[1] : Inherited from read_log_from_server(), this is str(product_name)
+            1) _ver_info[1] : Inherited from gen_version_list(), this is str(product_name)
             2) _crash_info : tuple data. [0] is crash_id, like: if-2007876330-1507164162867, [1] is crash_log.
         """
         for _ver_info in self.read_log_from_server():
             for _crash_info in _ver_info[0]:
-                env = CrashParser.get_env_info(_crash_info[-1])
+                env = CrashParser.get_ver_info(_crash_info[-1])
                 yield env, _ver_info[1], _crash_info
 
     def parsing(self):

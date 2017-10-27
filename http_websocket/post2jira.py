@@ -37,40 +37,48 @@
 #                      o _|_           __
 #                      |  |      (__| (__) (__(_
 #                                   |
-import time
 from jira import JIRA
-import urllib
+from jira import JIRAError
 
 
-class CreateJIRAIssue(object):
+class JIRAHandler(object):
     def __init__(self):
+        super(JIRAHandler, self).__init__()
         self.jira_addr = 'http://192.168.1.118:8080'
-        self.acc = 'zhaoyefeng'
-        self.acc_pwd = 'lancelot0318'
+        self.acc = 'CrashParser'
+        self.acc_pwd = 'qwer1234'
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))
 
-    def create(self, pjname, priority, summary, environment, description):
-        issue_fields = self.gen_fields_dict(pjname, priority, summary, environment, description)
-        new_issue = self.jira.create_issue(fields=issue_fields)
-        return new_issue
+    def create(self, pjname, priority, summary, environment, description, version):
+        return self.jira.create_issue(
+            fields=self.gen_fields_dict(
+                pjname, priority, summary, environment, description, version
+            )
+        )
 
-    def gen_fields_dict(self, pjname, priority, summary, environment, description):
+    def gen_fields_dict(self, pjname, priority, summary, environment, description, version):
         issue_dict = {
             'project': self.project(pjname),
             'issuetype': {'name': 'bug', 'id': '1'},
             'customfield_10004': self.customfield_10004(),  # 问题归属
             'customfield_10003': self.customfield_10003(),  # bug分类
             'summary': summary,
-            'versions': [{'name': '1.1.0'}, {'name': '1.0.0'}],
-            'customfield_10002': {'id': '10014', 'child': {'id': '10018'}},  # 严重程度
+            'versions': self.version(version),
+            'customfield_10002': {'id': '10014', 'child': {'id': '10018'}},  # 严重程度, A-崩溃
             'priority': self.priority(priority),
-            'assignee': {'name': 'zhaoyefeng'},
+            'assignee': [{'name': 'zhaoyefeng'}, {'name': 'CrashParser'}],
             'environment': environment,
             'description': description,
-            'reporter': {'name': 'haixiazhang'}
+            # 'reporter': {'name': 'haixiazhang'}
         }
 
         return issue_dict
+
+    def udpate_exist_issue(self, jira_id, desc, vers):
+        issue = self.read_issue(jira_id)
+        issue.fields.description(desc)
+        if vers:
+            issue.fields.versions(vers)
 
     def project(self, value):
         method_name = 'project_' + str(value).lower()
@@ -109,35 +117,35 @@ class CreateJIRAIssue(object):
     def priority_later(self):
         return {'id': '4'}
 
-        # def version(self, value):
-        #     if isinstance(value, list):
+    def version(self, value):
+        versions = list()
+        if isinstance(value, list):
+            for i in value:
+                versions.append({
+                    'name': i
+                })
+        else:
+            versions.append({
+                'name': value
+            })
+        return versions
 
+    def read_issue(self, jira_id):
+        return self.jira.issue(jira_id)
 
-class ReadFromJIRA(CreateJIRAIssue):
-    def __init__(self):
-        super(ReadFromJIRA, self).__init__()
-
-    def read_desc(self, jiraId):
-        return self.jira.issue(jiraId).fields.description
-
-    def read_version(self, jiraId):
-        return self.jira.issue(jiraId).fields.versions
-
-
-class UpdateJIRA(CreateJIRAIssue):
-    def __init__(self):
-        super(UpdateJIRA, self).__init__()
-
-    def update_desc(self, jiraId, descs):
-        self.jira.issue(jiraId).update(description=descs)
+    def update_issue(self, jira_id):
+        return self.jira.issue(jira_id)
 
 
 if __name__ == '__main__':
-    cj = CreateJIRAIssue()
-    rj = ReadFromJIRA()
-    uj = UpdateJIRA()
-    # re = cj.create(pjname='sa', summary='testse', environment='woief', description='dese\nfese\ncon: wefwoefi', priority='urgen')
-    print(rj.read_version('SA-370'))
+    jh = JIRAHandler()
+    try:
+        re = jh.create(pjname='sa', summary='testse', environment='woief', description='dese\nfese\ncon: wefwoefi', priority='urgen', version='1.0.0')
+        print(re)
+    except JIRAError as e:
+        print(e)
+    # ver = jh.read_version('SA-370')
+    # print(len(ver))
     # desc = rj.read_desc(re)
     # desc_l = list()
     # for i in desc.split('\n'):

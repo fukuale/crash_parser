@@ -43,28 +43,35 @@ import os
 
 import time
 import types
+import csv
 
 try:
     import sqlite_base
     from similarity_compare import SimilarityCompute
+    from post2jira import JIRAHandler
+    from parse_crash_log import CrashParser
 except ModuleNotFoundError:
     import http_websocket.sqlite_base as sqlite_base
     from http_websocket.similarity_compare import SimilarityCompute
+    from http_websocket.post2jira import JIRAHandler
+    from http_websocket.parse_crash_log import CrashParser
 
 
 class ReportGenerator(SimilarityCompute):
-    def __init__(self):
-        super().__init__(0, 0)
+    def __init__(self, product_name_list):
+        super(SimilarityCompute, self).__init__()
+        self.product_name_list = product_name_list
         self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'database')
         self.report_sql = os.path.join(self.conf_dir, 'ReportInfo.sqlite')
         self.statistic_sql = os.path.join(self.conf_dir, 'CrashCount.sqlite')
+        self.jirahandler = JIRAHandler()
 
     @staticmethod
-    def get_today_timestamp(day=9):
+    def get_today_timestamp(day=8):
         today = datetime.datetime.today() - datetime.timedelta(day)
         return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
 
-    def get_today_from_count(self):
+    def get_today_from_statistics(self):
         """
 
         :return: backtrack_x tables id.
@@ -86,7 +93,7 @@ class ReportGenerator(SimilarityCompute):
             1) CRASH_ID
             2) REASON
         """
-        _tables_id = self.get_today_from_count()
+        _tables_id = self.get_today_from_statistics()
         if _tables_id:
             for table_id in _tables_id:
                 conn, cursor = sqlite_base.sqlite_connect(sql_abs_path=self.statistic_sql)
@@ -206,7 +213,7 @@ class ReportGenerator(SimilarityCompute):
         else:
             return []
 
-    def gen_csv_report(self):
+    def submit_jira(self):
         _only_crash_id_l = self.match_reason()
         if _only_crash_id_l.__len__() > 0:
             conn, cursor = sqlite_base.sqlite_connect(self.report_sql)
@@ -217,7 +224,15 @@ class ReportGenerator(SimilarityCompute):
                                                   table_name='report',
                                                   condition="where CRASH_ID = '%s'" % _crash_id[0])
                 if _log_finally:
-                    print(_log_finally)
+                    _log_l = _log_finally.split('\n')
+
+                    __env = _log_l[1:7]
+
+                    for _line in _log_l:
+                        if _line.startswith('version'):
+
+
+                    self.jirahandler.create(pjname=)
                 else:
                     print('csv report generation failed !')
             cursor.close()
@@ -228,4 +243,4 @@ class ReportGenerator(SimilarityCompute):
 
 if __name__ == '__main__':
     rg = ReportGenerator()
-    rg.gen_csv_report()
+    rg.submit_jira()

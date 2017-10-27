@@ -122,7 +122,7 @@ class ParsingLog(object):
                 return False
 
     def get_env_info(self, raw_data):
-        env = CrashParser.get_env_info(raw_data)
+        env = CrashParser.get_ver_info(raw_data)
         return env, raw_data
 
     def parsing(self, raw_data):

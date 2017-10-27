@@ -45,8 +45,8 @@ import sqlite3
 import os
 
 
-def get_today_timestamp(day=10):
-    today = datetime.datetime.today() - datetime.timedelta(days=day) + datetime.timedelta(hours=3)
+def get_today_timestamp(day=8):
+    today = datetime.datetime.today() - datetime.timedelta(days=day) + datetime.timedelta(hours=1)
     return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, today.hour, today.minute, today.second).timetuple())))
 
 
@@ -120,7 +120,7 @@ def create_report_table(conn, cursor, end=True, **kwargs):
 
 
 def create_reasons_table(conn, cursor, end=True, **kwargs):
-    cursor.execute('CREATE TABLE reasons(REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL)')
+    cursor.execute('CREATE TABLE reasons(FIXED MESSAGE_TEXT, JIRAID MESSAGE_TEXT, REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL)')
     if end:
         cursor.close()
         conn.close()
