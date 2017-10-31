@@ -70,7 +70,7 @@ class CrashParser:
             try:
                 max_trac = int(self.request_lines[_id].split()[0])
                 return max_trac + 1, _id
-            except ValueError as e:
+            except ValueError:
                 _id -= 1
 
     @staticmethod
@@ -197,16 +197,16 @@ class CrashParser:
             else:
                 self.request_lines[line_id] = replace_data
 # Crash information insert to sql
-            if tableid:
-                conn, cursor = sqlite_base.sqlite_connect()
-                sqlite_base.update(conn, cursor,
-                                   table_name='backtrack_%d' % tableid,
-                                   reason=','.join(reason_l),  # All crash information will be inserted to sql...
-                                   condition="where CRASH_ID = '%s'" % crash_id)
-                # print the finally data after parsing
-                conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
-                sqlite_base.insert(conn_db2, cursor_db2,
-                                   table_name='report',
-                                   crash_id=crash_id,
-                                   log='\n'.join(self.request_lines))  # All crash information will be inserted to sql...
+        if tableid:
+            conn, cursor = sqlite_base.sqlite_connect()
+            sqlite_base.update(conn, cursor,
+                               table_name='backtrack_%d' % tableid,
+                               reason=','.join(reason_l),  # All crash information will be inserted to sql...
+                               condition="where CRASH_ID = '%s'" % crash_id)
+            # print the finally data after parsing
+            conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
+            sqlite_base.insert(conn_db2, cursor_db2,
+                               table_name='report',
+                               crash_id=crash_id,
+                               log='\n'.join(self.request_lines))  # All crash information will be inserted to sql...
         return '\n'.join(self.request_lines)

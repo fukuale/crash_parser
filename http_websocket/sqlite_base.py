@@ -80,7 +80,7 @@ def create_base_table(conn, cursor, end=True):
     :return: Nothing to return
     """
     cursor.execute('''CREATE TABLE statistics
-        (COUNT INT NOT NULL,
+        (FREQUENCY INT NOT NULL,
         CONTENT MESSAGE_TEXT NOT NULL,
         FIRST_VERSION MESSAGE_TEXT NOT NULL,
         LAST_VERSION MESSAGE_TEXT ,
@@ -102,8 +102,8 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     :return: Nothing to return
     """
     cursor.execute(
-        'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL,\
-          LAST_UPDATE MESSAGE_TEXT );' % kwargs['id'])
+        'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, VERSION MESSAGE_TEXT, \
+INSERT_TIME MESSAGE_TEXT NOT NULL, LAST_UPDATE MESSAGE_TEXT );' % kwargs['id'])
     print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
@@ -120,7 +120,8 @@ def create_report_table(conn, cursor, end=True, **kwargs):
 
 
 def create_reasons_table(conn, cursor, end=True, **kwargs):
-    cursor.execute('CREATE TABLE reasons(FIXED MESSAGE_TEXT, JIRAID MESSAGE_TEXT, REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL)')
+    cursor.execute('CREATE TABLE reasons(FIXED MESSAGE_TEXT, JIRAID MESSAGE_TEXT, FREQUENCY INT DEFAULT 1,\
+REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL, LAST_UPDATE MESSAGE_TEXT)')
     if end:
         cursor.close()
         conn.close()
@@ -169,19 +170,19 @@ def insert(conn, cursor, end=True, **kwargs):
     inse = str()
     if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
-            _inse_cmd_format = "INSERT INTO statistics(COUNT, CONTENT, FIRST_VERSION, LAST_VERSION, INSERT_TIME, LAST_UPDATE) values(?,?,?,?,?,?)"
+            _inse_cmd_format = "INSERT INTO statistics(FREQUENCY, CONTENT, FIRST_VERSION, LAST_VERSION, INSERT_TIME, LAST_UPDATE) values(?,?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
-                           (kwargs['count'], kwargs['content'], kwargs['fv'], kwargs['lv'], get_today_timestamp(), get_today_timestamp()))
+                           (kwargs['frequency'], kwargs['content'], kwargs['fv'], kwargs['lv'], get_today_timestamp(), get_today_timestamp()))
 
         elif kwargs['table_name'].startswith('backtrack_'):
-            _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, INSERT_TIME) values(?,?)" % kwargs['table_name']
-            cursor.execute(_inse_cmd_format_, (kwargs['crash_id'], get_today_timestamp()))
+            _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, VERSION,INSERT_TIME) values(?,?,?)" % kwargs['table_name']
+            cursor.execute(_inse_cmd_format_, (kwargs['crash_id'], kwargs['version'], get_today_timestamp()))
         elif kwargs['table_name'] == 'report':
             _inse_cmd_format = "INSERT INTO report(CRASH_ID, LOG) values(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['crash_id'], kwargs['log']))
         elif kwargs['table_name'] == 'reasons':
-            _inse_cmd_format = "INSERT INTO reasons(REASON, INSERT_TIME) VALUES(?,?)"
-            cursor.execute(_inse_cmd_format, (kwargs['reason'], get_today_timestamp()))
+            _inse_cmd_format = "INSERT INTO reasons(JIRAID, FREQUENCY, REASON, INSERT_TIME) VALUES(?,?,?,?)"
+            cursor.execute(_inse_cmd_format, (kwargs['jiraid'], kwargs['frequency'], kwargs['reason'], get_today_timestamp()))
         elif kwargs['table_name'] == 'unmatch':
             _inse_cmd_format = "INSERT INTO unmatch(CRASH_ID, INSERT_TIME) VALUES(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['crash_id'], get_today_timestamp()))
@@ -212,8 +213,8 @@ def update(conn, cursor, end=True, **kwargs):
         for _index, _value in enumerate(kwargs['columns']):
             if _index >= 1:
                 _update_sql += ', '
-            if 'COUNT' == _value:
-                _update_sql += 'COUNT = COUNT+1'
+            if 'FREQUENCY' == _value:
+                _update_sql += 'FREQUENCY = FREQUENCY+%s' % kwargs['values'][0]
             else:
                 _update_sql += "%s = \'%s\'" % (_value, kwargs['values'][_index])
         _update_sql += ", LAST_UPDATE = \'%s\' " % get_today_timestamp() + kwargs[

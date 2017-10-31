@@ -125,10 +125,24 @@ class ReportGenerator(SimilarityCompute):
                         _only_clear = self.variable_remove(_only_reason[-1])
                         _sim_percent = self.compute_similarity(_all_reason_clear, _only_clear)
                         if 1 == _sim_percent:
+                            _table_id = _all_reason[0]
+                            _table_row = _all_reason[1]
+                            _only_crash_reason[_only_key][2] += 1
+                            _list = _only_crash_reason[_only_key][0].get(_table_id)
+                            if _list:
+                                _only_crash_reason[_only_key][0][_table_id].append(_table_row)
+                            else:
+                                _only_crash_reason[_only_key][0][_table_id] = [_table_row]
+
                             break
                         if -1 == _only_key - len(_only_crash_reason):
+                            _all_reason.insert(2, 1)
+                            _all_reason[0] = {_all_reason[0]: [_all_reason[1]]}
                             _only_crash_reason.append(_all_reason)
+                            break
                 else:
+                    _all_reason.insert(2, 1)
+                    _all_reason[0] = {_all_reason[0]: [_all_reason[1]]}
                     _only_crash_reason.append(_all_reason)
             return _only_crash_reason
         else:
@@ -173,43 +187,64 @@ class ReportGenerator(SimilarityCompute):
                     if (ind[0] - _start) > 1:
                         _part_reason = sqlite_base.search(conn, cursor,
                                                           end=False,
-                                                          columns='REASON',
+                                                          columns='ROWID, REASON',
                                                           table_name='reasons',
                                                           condition='where rowid >= %d and rowid <= %d' % (
                                                               _start, _start + _step - 1))
                     else:
                         _part_reason = sqlite_base.search(conn, cursor,
                                                           end=False,
-                                                          columns='REASON',
+                                                          columns='ROWID, REASON',
                                                           table_name='reasons',
                                                           condition='where rowid >= %d and rowid <= %d' % (
                                                               _start, ind[-1]))
-                    yield [_reason[0] for _reason in _part_reason]
+                    yield [_reason for _reason in _part_reason]
 
                     _start += _step
 
     def match_reason(self):
         conn, cursor = sqlite_base.sqlite_connect('Reasons.sqlite')
-        _income_reason_onlly = self.get_crash_reason_only()
+        conn2, cursor2 = sqlite_base.sqlite_connect()
+        _income_reason_only = self.get_crash_reason_only()
 
-        sh = 0
         for _s_r in self.search_sql_reason(conn, cursor):
             if _s_r:
                 for _s_r_s in _s_r:
-                    _s_clear = self.variable_remove(_s_r_s)
-                    for _iro_key, _iro_value in enumerate(_income_reason_onlly):
+                    _s_clear = self.variable_remove(_s_r_s[-1])
+                    for _iro_key, _iro_value in enumerate(_income_reason_only):
                         _iro_clear = self.variable_remove(_iro_value[-1])
                         _sim_percent = self.compute_similarity(_iro_clear, _s_clear)
                         if 1 == _sim_percent:
-                            del _income_reason_onlly[_iro_key]
-                            sh += 1
-        if _income_reason_onlly:
-            for _new in _income_reason_onlly:
-                _is = sqlite_base.insert(conn, cursor,
-                                         end=False,
-                                         table_name='reasons',
-                                         reason=_new[-1])
-            return _income_reason_onlly
+                            del _income_reason_only[_iro_key]
+                            sqlite_base.update(conn, cursor,
+                                               end=False,
+                                               table_name='reasons',
+                                               columns=['FREQUENCY'],
+                                               values=[_iro_value[2]],
+                                               condition="WHERE ROWID = '%d'" % _s_r_s[0])
+                            for i in _iro_value[0].keys():
+                                # conditions = str()
+                                conditions = 'WHERE '
+                                _ll = _iro_value[0][i]
+                                for k, v in enumerate(_ll):
+                                    if k >= 1:
+                                        conditions += ' or '
+                                    conditions += 'ROWID = %d' % v
+                                sqlite_base.update(conn2, cursor2,
+                                                   end=False,
+                                                   table_name='backtrack_%s' % str(i),
+                                                   columns=['REASON_ID'],
+                                                   values=[_s_r_s[0]],
+                                                   condition=conditions)
+
+        if conn:
+            cursor.close()
+            conn.close()
+        elif conn2:
+            cursor2.close()
+            conn2.close()
+        if _income_reason_only:
+            return _income_reason_only
         else:
             return []
 
@@ -217,22 +252,67 @@ class ReportGenerator(SimilarityCompute):
         _only_crash_id_l = self.match_reason()
         if _only_crash_id_l.__len__() > 0:
             conn, cursor = sqlite_base.sqlite_connect(self.report_sql)
+            conn2, cursor2 = sqlite_base.sqlite_connect('Reasons.sqlite')
+            conn3, cursor3 = sqlite_base.sqlite_connect()
             for _crash_id in _only_crash_id_l:
                 _log_finally = sqlite_base.search(conn, cursor,
                                                   end=False,
                                                   columns='LOG',
                                                   table_name='report',
-                                                  condition="where CRASH_ID = '%s'" % _crash_id[0])
+                                                  condition="where CRASH_ID = '%s'" % _crash_id[-2])
                 if _log_finally:
-                    _log_l = _log_finally.split('\n')
+                    print(type(_log_finally), _log_finally)
+                    _log_l = _log_finally[0][0].split('\n')
 
-                    __env = _log_l[1:7]
+                    __env = '\n'.join(_log_l[1:7])
 
-                    for _line in _log_l:
-                        if _line.startswith('version'):
+                    __ver = CrashParser.get_ver_info(_log_l)[0]
 
+                    for _lines in _log_l:
+                        for x in self.product_name_list:
+                            if -1 != _lines.find(x):
+                                __proj = x
+                                if __proj:
+                                    __cr = ''.join(_lines.split()[4:])
+                                    break
+                        else:
+                            continue
+                        break
+                    else:
+                        continue
 
-                    self.jirahandler.create(pjname=)
+                    __summary = 'Crash Analysis: ' + __cr + '[Frequency:%s]' % _crash_id[1]
+                    __projname = __proj
+
+                    _jira_id = self.jirahandler.create(pjname=__projname,
+                                                       summary=__summary,
+                                                       environment=__env,
+                                                       description=_log_finally[0][0].replace('<pre>', '').replace(
+                                                           '</pre>', ''),
+                                                       version=__ver,
+                                                       priority='urgen')
+                    _rowid = sqlite_base.insert(conn2, cursor2,
+                                                end=False,
+                                                table_name='reasons',
+                                                reason=_crash_id[-1],
+                                                frequency=_crash_id[1],
+                                                jiraid=_jira_id.key)
+
+                    for i in _crash_id[0].keys():
+                        # conditions = str()
+                        conditions = 'WHERE '
+                        _ll = _crash_id[0][i]
+                        for k, v in enumerate(_ll):
+                            if k >= 1:
+                                conditions += ' or '
+                            conditions += 'ROWID = %d' % v
+                        sqlite_base.update(conn3, cursor3,
+                                           end=False,
+                                           table_name='backtrack_%s' % str(i),
+                                           columns=['REASON_ID'],
+                                           values=[_rowid],
+                                           condition=conditions)
+
                 else:
                     print('csv report generation failed !')
             cursor.close()
@@ -242,5 +322,5 @@ class ReportGenerator(SimilarityCompute):
 
 
 if __name__ == '__main__':
-    rg = ReportGenerator()
+    rg = ReportGenerator(product_name_list=['WeGamers', 'WeLive', 'LINK'])
     rg.submit_jira()

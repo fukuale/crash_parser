@@ -50,11 +50,14 @@ class JIRAHandler(object):
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))
 
     def create(self, pjname, priority, summary, environment, description, version):
-        return self.jira.create_issue(
-            fields=self.gen_fields_dict(
-                pjname, priority, summary, environment, description, version
+        try:
+            return self.jira.create_issue(
+                fields=self.gen_fields_dict(
+                    pjname, priority, summary, environment, description, version
+                )
             )
-        )
+        except JIRAError as jira:
+            return jira.text
 
     def gen_fields_dict(self, pjname, priority, summary, environment, description, version):
         issue_dict = {
@@ -66,7 +69,7 @@ class JIRAHandler(object):
             'versions': self.version(version),
             'customfield_10002': {'id': '10014', 'child': {'id': '10018'}},  # 严重程度, A-崩溃
             'priority': self.priority(priority),
-            'assignee': [{'name': 'zhaoyefeng'}, {'name': 'CrashParser'}],
+            'assignee': {'name': 'zhaoyefeng'},
             'environment': environment,
             'description': description,
             # 'reporter': {'name': 'haixiazhang'}
@@ -85,7 +88,7 @@ class JIRAHandler(object):
         method = getattr(self, method_name)
         return method()
 
-    def project_gameim(self):
+    def project_wegamers(self):
         return {'id': '10400'}
 
     def project_welive(self):
