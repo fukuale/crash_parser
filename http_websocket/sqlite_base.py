@@ -102,13 +102,13 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     :return: Nothing to return
     """
     cursor.execute(
-        'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, VERSION MESSAGE_TEXT, \
+        'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, VERSION MESSAGE_TEXT, \
 INSERT_TIME MESSAGE_TEXT NOT NULL, LAST_UPDATE MESSAGE_TEXT );' % kwargs['id'])
     print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
         conn.close()
-
+#
 
 def create_report_table(conn, cursor, end=True, **kwargs):
     cursor.execute(
@@ -120,7 +120,7 @@ def create_report_table(conn, cursor, end=True, **kwargs):
 
 
 def create_reasons_table(conn, cursor, end=True, **kwargs):
-    cursor.execute('CREATE TABLE reasons(FIXED MESSAGE_TEXT, JIRAID MESSAGE_TEXT, FREQUENCY INT DEFAULT 1,\
+    cursor.execute('CREATE TABLE reasons(FIXED INT DEFAULT 0, JIRAID MESSAGE_TEXT, FREQUENCY INT DEFAULT 1,\
 REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL, LAST_UPDATE MESSAGE_TEXT)')
     if end:
         cursor.close()
@@ -239,7 +239,7 @@ def update(conn, cursor, end=True, **kwargs):
     return _row_id_update[0][0]
 
 
-def search(conn, cursor, end=True, **kwargs):
+def search(conn, cursor, end=True, only=False, **kwargs):
     """
 
     :param end:
@@ -250,11 +250,14 @@ def search(conn, cursor, end=True, **kwargs):
     """
 
     try:
-        search_sql = 'SELECT %s FROM %s %s' % (
+        distinct = str()
+        if only:
+            distinct = 'DISTINCT '
+        search_sql = 'SELECT %s %s FROM %s %s' % (
+            distinct,
             kwargs['columns'],
             kwargs['table_name'],
             kwargs['condition'])
-
         result = cursor.execute(search_sql).fetchall()
 
         if end:

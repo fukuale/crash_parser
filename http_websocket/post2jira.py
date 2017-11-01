@@ -136,29 +136,11 @@ class JIRAHandler(object):
     def read_issue(self, jira_id):
         return self.jira.issue(jira_id)
 
-    def update_issue(self, jira_id):
-        return self.jira.issue(jira_id)
-
-
-if __name__ == '__main__':
-    jh = JIRAHandler()
-    try:
-        re = jh.create(pjname='sa', summary='testse', environment='woief', description='dese\nfese\ncon: wefwoefi', priority='urgen', version='1.0.0')
-        print(re)
-    except JIRAError as e:
-        print(e)
-    # ver = jh.read_version('SA-370')
-    # print(len(ver))
-    # desc = rj.read_desc(re)
-    # desc_l = list()
-    # for i in desc.split('\n'):
-    #     if i.startswith('con:'):
-    #         desc_l.append('con: w654w6ef1')
-    #     else:
-    #         desc_l.append(i)
-    # desc_m = '\n'.join(desc_l)
-    # uj.update_desc(re, desc_m)
-
-    # print(desc)
-
-    # print(re)
+    def update_issue(self, issue, version=False, summary=False):
+        if version and summary:
+            self.version(version)
+            return issue.update(fields={'versions': self.version(version), 'summary': summary})
+        elif version and not summary:
+            return issue.update(fields={'versions': self.version(version)})
+        elif summary and not version:
+            return issue.update(fields={'summary': summary})

@@ -48,6 +48,7 @@ try:
     from parse_crash_log import CrashParser
     from init_dsym import DownloadDSYM
     from subproc import SubProcessBase
+    from report_export import ReportGenerator
     import tornado_parser_server
 except ModuleNotFoundError:
     from http_websocket.similarity_compare import SimilarityCompute
@@ -55,6 +56,7 @@ except ModuleNotFoundError:
     from http_websocket.parse_crash_log import CrashParser
     from http_websocket.init_dsym import DownloadDSYM
     from http_websocket.subproc import SubProcessBase
+    from http_websocket.report_export import ReportGenerator
     import http_websocket.tornado_parser_server
 
 
@@ -148,8 +150,14 @@ class TaskSchedule(object):
                                      tableid=_row_id,
                                      crash_id=tuple_env_log[-1][0])
 
+    def jira(self):
+        _project_name_l = [os.path.splitext(x)[0] for x in self.conf_files]
+        rg = ReportGenerator(product_name_list=_project_name_l)
+        rg.submit_jira()
+        rg.update_jira()
+
 
 if __name__ == '__main__':
-
     ts = TaskSchedule()
     ts.parsing()
+    ts.jira()

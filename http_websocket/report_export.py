@@ -89,22 +89,26 @@ class ReportGenerator(SimilarityCompute):
     def get_crash_reason_all(self):
         """
 
-        :return: all tables reason. included duplicate data.
-            1) CRASH_ID
-            2) REASON
+        :return: List data.
+            0) table_id of backtrack tables.
+            1) rowid of table.
+            2) crash_id.
+            3) reason.
         """
         _tables_id = self.get_today_from_statistics()
         if _tables_id:
             for table_id in _tables_id:
                 conn, cursor = sqlite_base.sqlite_connect(sql_abs_path=self.statistic_sql)
                 _new_reason = sqlite_base.search(conn, cursor,
-                                                 columns='CRASH_ID, REASON',
+                                                 columns='ROWID, CRASH_ID, REASON',
                                                  table_name='backtrack_%d' % table_id,
                                                  condition='where INSERT_TIME > %s and REASON NOT NULL' %
                                                            ReportGenerator.get_today_timestamp())
                 if _new_reason:
                     for _x_reason in _new_reason:
-                        yield _x_reason  # one of list data per table.
+                        _x_reason = list(_x_reason)
+                        _x_reason.insert(0, table_id)
+                        yield list(_x_reason)  # one of list data per table.
                 else:
                     return _tables_id
         else:
@@ -223,7 +227,6 @@ class ReportGenerator(SimilarityCompute):
                                                values=[_iro_value[2]],
                                                condition="WHERE ROWID = '%d'" % _s_r_s[0])
                             for i in _iro_value[0].keys():
-                                # conditions = str()
                                 conditions = 'WHERE '
                                 _ll = _iro_value[0][i]
                                 for k, v in enumerate(_ll):
@@ -247,6 +250,68 @@ class ReportGenerator(SimilarityCompute):
             return _income_reason_only
         else:
             return []
+
+    def update_jira(self):
+        conn, cursor = sqlite_base.sqlite_connect('Reasons.sqlite')
+        _now_fre = sqlite_base.search(conn, cursor,
+                                      end=False,
+                                      table_name='reasons',
+                                      columns='ROWID, FIXED, JIRAID, FREQUENCY',
+                                      condition='WHERE JIRAID NOT NULL')
+        for _reasons in _now_fre:
+            print(_reasons)
+            _version_new = list()
+            summary = str()
+            _issue = self.jirahandler.read_issue(_reasons[2])
+            _biggest_version = self.sql_version(_reasons[0])[0]
+            _ver_exists = _issue.fields.versions
+            for k, v in enumerate(_ver_exists):
+                if _biggest_version == str(v):
+                    break
+                if -1 == k - len(_ver_exists):
+                    if len(_ver_exists) == 1:
+                        _version_new.append(str(v))
+                        _version_new.append(_biggest_version)
+                        _version_new.sort(key=lambda x: tuple(int(v) for v in x.split('.')))
+                    else:
+                        _version_new[1] = _biggest_version
+                    break
+
+            _frequency_exits = _issue.fields.summary
+            _frequency_string = _frequency_exits[_frequency_exits.find('[Frequency'):]
+            _frequency_int = int(_frequency_string.split(':')[1].split(']')[0])
+
+            if _reasons[-1] == _frequency_int:
+                pass
+            else:
+                summary = _frequency_exits[:_frequency_exits.find('[Frequency')] + '[Frequency:%s]' % _reasons[-1]
+            print(_version_new, summary)
+            if _version_new or summary:
+                self.jirahandler.update_issue(_issue, _version_new, summary)
+            else:
+                print('nothing to update.')
+        ReportGenerator.sum_tables()
+
+    @staticmethod
+    def sql_version(reasonid):
+        conn, cursor = sqlite_base.sqlite_connect()
+        _tables = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE TYPE=\'table\' AND name LIKE \'backtrack_%\'").fetchall()
+        _versions = list()
+        for i in _tables:
+            _version = sqlite_base.search(conn, cursor,
+                                          end=False,
+                                          table_name=i[0],
+                                          only=True,
+                                          columns='VERSION',
+                                          condition='WHERE REASON_ID = %s' % reasonid)
+            _versions.extend(_version)
+        if _versions:
+            _versions = [x[0] for x in _versions]
+            _versions.sort(key=lambda x: tuple(int(v) for v in x.split('.')))
+            return _versions
+        else:
+            print('error')
 
     def submit_jira(self):
         _only_crash_id_l = self.match_reason()
@@ -295,7 +360,7 @@ class ReportGenerator(SimilarityCompute):
                                                 end=False,
                                                 table_name='reasons',
                                                 reason=_crash_id[-1],
-                                                frequency=_crash_id[1],
+                                                frequency=_crash_id[2],
                                                 jiraid=_jira_id.key)
 
                     for i in _crash_id[0].keys():
@@ -320,7 +385,15 @@ class ReportGenerator(SimilarityCompute):
         else:
             print('Have no new crash now !')
 
+    @staticmethod
+    def sum_tables():
+        conn, cursor = sqlite_base.sqlite_connect()
+        conn2, cursor2 = sqlite_base.sqlite_connect('Reasons.sqlite')
+        _tables = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE TYPE=\'table\' AND name LIKE \'backtrack_%\'").fetchall()
+        _num = int()
+        for i in _tables:
+            _num += int(cursor.execute("SELECT COUNT(*) FROM %s" % i).fetchall()[0][0])
 
-if __name__ == '__main__':
-    rg = ReportGenerator(product_name_list=['WeGamers', 'WeLive', 'LINK'])
-    rg.submit_jira()
+        _reason = cursor2.execute("SELECT SUM(FREQUENCY) FROM reasons").fetchall()[0][0]
+        print('BACKTRACK ALL ITEM: ', _num, 'REASONS ALL ITEM: ', _reason)
