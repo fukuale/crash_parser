@@ -39,7 +39,7 @@
 #                      |  |      (__| (__) (__(_
 #                                   |
 
-import os, time
+import os
 
 try:
     import subproc
@@ -103,8 +103,6 @@ class DownloadDSYM(object):
                             self.proc.sub_procs_run(cmd=rm_temp_macosx)
                             grep_file = 'ls %s | grep %s.app' % (self.default_download_folder, product)
                             result = self.proc.sub_procs_run(cmd=grep_file).stdout.decode().split()[0]
-                            test1 = os.path.join(self.default_download_folder, result)
-                            test2 = _abs_dSYM
                             os.rename(os.path.join(self.default_download_folder, result),
                                       _abs_dSYM)
                             return _abs_dSYM
@@ -137,9 +135,9 @@ class DownloadDSYM(object):
         :param kwargs: Accept build_id
         :return: String object. download link
         """
-        self._abs_dSYM = 'WeGamers.app.%s.dSYM.zip' % kwargs['build_id']
+        _abs_dSYM = 'WeGamers.app.%s.dSYM.zip' % kwargs['build_id']
         return os.path.join(
-            domain, wegamers_folder, platform, appstore, self._abs_dSYM)
+            domain, wegamers_folder, platform, appstore, _abs_dSYM)
 
     def wegamers_dev(self, **kwargs):
         """
@@ -147,10 +145,10 @@ class DownloadDSYM(object):
         :param kwargs: Accept 1)version_number, 2)build_id
         :return: String object. download link
         """
-        self._abs_dSYM = 'WeGamers_Enterprise_v%s\(r%s\)-dSYM.zip' % (
+        _abs_dSYM = 'WeGamers_Enterprise_v%s\(r%s\)-dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
-            domain, wegamers_folder, platform, dev, self._abs_dSYM)
+            domain, wegamers_folder, platform, dev, _abs_dSYM)
 
     def gamelive_appstore(self, build_id):
         """
@@ -166,7 +164,7 @@ class DownloadDSYM(object):
         :param kwargs: Accept 1)version_number, 2)build_id
         :return: String object. download link
         """
-        self._abs_dSYM = 'GameLive_Enterprise_v%s\(r%s\)-dSYM.zip' % (
+        _abs_dSYM = 'GameLive_Enterprise_v%s\(r%s\)-dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
-            domain, gamelive_folder, platform, dev, self._abs_dSYM)
+            domain, gamelive_folder, platform, dev, _abs_dSYM)
