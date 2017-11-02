@@ -21,8 +21,8 @@ def popen_judge(popen_obj, method_name, parameters):
             return 1
     elif popen_obj.returncode != 0 and popen_obj.stderr:
         log.cri(
-            ' %-20s ]-[ System cmd execution err: %s, code:%d, incoming parameters: %s' % (
-                method_name, popen_obj.stderr, popen_obj.returncode, parameters))
+            ' %-20s ]-[ System cmd execution err: %s, code:%s, incoming parameters: %s' % (
+                method_name, popen_obj.stderr, str(popen_obj.returncode), str(parameters)))
         return False
     else:
         log.error(
@@ -39,7 +39,7 @@ class SubProcessBase:
     def sub_procs_run(**args):
 
         _func_name = sys._getframe().f_back.f_code.co_name
-        log.debug(' %-20s ]-[ Parameters in: %s' % (_func_name, args))
+        log.debug(' %-20s ]-[ Parameters in: %s' % (_func_name, str(args)))
         if args.__len__() == 1:
             _sub_result = subprocess.run(args['cmd'].encode(),
                                          stdin=subprocess.PIPE,
