@@ -51,6 +51,7 @@ from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
 
 try:
+    from logger import Logger
     from init_dsym import DownloadDSYM
     from parse_crash_log import CrashParser
     from get_crash_log import GetCrashInfoFromServer
@@ -62,7 +63,8 @@ except ModuleNotFoundError:
     from http_websocket.get_crash_log import GetCrashInfoFromServer
     from http_websocket.similarity_compare import SimilarityCompute
 
-log = Logger('/var/log/CrashParser.log', 'Tornado Server')
+log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+log = Logger(log_file, 'TornadoServer')
 define('port', default=7724, type=int)
 
 

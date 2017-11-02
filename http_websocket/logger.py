@@ -18,7 +18,7 @@ import sys
 
 
 class Logger:
-    def __init__(self, path, logger, clevel=logging.DEBUG, Flevel=logging.DEBUG):
+    def __init__(self, path, logger, clevel=logging.INFO, Flevel=logging.DEBUG):
         self.logger = logging.getLogger(logger)
         self.logger.setLevel(logging.DEBUG)
         fmt = logging.Formatter(
@@ -39,16 +39,16 @@ class Logger:
         return sys._getframe().f_back.f_code.co_name
 
     def debug(self, message):
-        self.logger.debug(message.encode('utf-8'))
+        self.logger.debug(message)
 
     def info(self, message):
-        self.logger.info(message.encode('utf-8'))
+        self.logger.info(message)
 
     def warn(self, message):
-        self.logger.warning(message.encode('utf-8'))
+        self.logger.warning(message)
 
     def error(self, message):
-        self.logger.error(message.encode('utf-8'))
+        self.logger.error(message)
 
     def cri(self, message):
-        self.logger.critical(message.encode('utf-8'))
+        self.logger.critical(message)

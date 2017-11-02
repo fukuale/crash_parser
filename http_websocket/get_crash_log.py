@@ -8,6 +8,8 @@ import datetime
 import time
 import queue
 
+import os
+
 try:
     from logger import Logger
     from subproc import SubProcessBase
@@ -17,7 +19,8 @@ except ModuleNotFoundError as e:
     from http_websocket.subproc import SubProcessBase
     from http_websocket.parse_crash_log import CrashParser
 
-log = Logger('/var/log/CrashParser.log', 'GetCrashLog')
+log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+log = Logger(log_file, 'GetCrashLog')
 
 yesteday = str(datetime.date.today() - datetime.timedelta(1))
 
@@ -68,7 +71,7 @@ class GetCrashInfoFromServer(object):
         )
         try:
             task_list = request.urlopen(list_params).read()
-            log.info(' %-20s ]-[ Crash id list from server. \n%s' % (log.get_function_name(), ', '.join(task_list)))
+            log.info(' %-20s ]-[ Crash id list from server. \n%s' % (log.get_function_name(), str(task_list)))
             if task_list:
                 return eval(task_list)
         except request.HTTPError as httperror:

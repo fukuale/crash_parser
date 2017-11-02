@@ -5,11 +5,15 @@ import subprocess
 
 import sys
 
+import os
+
 try:
-    import logger
+    from logger import Logger
 except ModuleNotFoundError:
-    import http_websocket.logger
-log = logger.Logger('runtimelog/r.log', 'SubProcessBase')
+    from http_websocket.logger import Logger
+
+log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+log = Logger(log_file, 'SubProcessBase')
 
 
 def popen_judge(popen_obj, method_name, parameters):

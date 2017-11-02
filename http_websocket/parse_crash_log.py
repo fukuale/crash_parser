@@ -40,6 +40,8 @@
 
 import re
 
+import os
+
 try:
     from logger import Logger
     import subproc
@@ -49,7 +51,8 @@ except ModuleNotFoundError as e:
     import http_websocket.subproc as subproc
     import http_websocket.sqlite_base as sqlite_base
 
-log = Logger('/var/log/CrashParser.log', 'ParseCrashLog')
+log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+log = Logger(log_file, 'ParseCrashLog')
 
 
 class CrashParser:

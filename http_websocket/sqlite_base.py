@@ -48,7 +48,8 @@ try:
 except ModuleNotFoundError:
     from http_websocket.logger import Logger
 
-log = Logger('/var/log/CrashParser.log', 'SQLiteBase')
+log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+log = Logger(log_file, 'SQLiteBase')
 
 
 def get_today_timestamp():
