@@ -37,36 +37,40 @@
 #                      o _|_           __
 #                      |  |      (__| (__) (__(_
 #                                   |
-import random
 import time
 import datetime
 import sqlite3
 
 import os
 
+try:
+    from logger import Logger
+except ModuleNotFoundError:
+    from http_websocket.logger import Logger
 
-def get_today_timestamp(day=8):
-    today = datetime.datetime.today() - datetime.timedelta(days=day) + datetime.timedelta(hours=1)
-    return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, today.hour, today.minute, today.second).timetuple())))
+log = Logger('/var/log/CrashParser.log', 'SQLiteBase')
+
+
+def get_today_timestamp():
+    today = datetime.datetime.today() - datetime.timedelta(1)
+    return str(int(time.mktime(
+        datetime.datetime(today.year, today.month, today.day, today.hour, today.minute, today.second).timetuple()
+    )))
 
 
 def sqlite_connect(sql_name='CrashCount.sqlite', sql_abs_path=0):
     """
-
+    Connect to sqlite file. Default is CrashCount.sqlite
     :return: Object sqlite Connection
     """
-    sql_path = str()
     if not sql_abs_path:
         sql_path = os.path.join(os.path.expanduser('~'), 'CrashParser', 'database', sql_name)
     else:
         sql_path = sql_abs_path
-    # conn = sqlite3.connect(':memory:')
     conn = sqlite3.connect(sql_path)
     if conn:
-        print('crash_reason_count.db connected . . .')
         cursor = conn.cursor()
         if cursor:
-            print('crash_reason_count.db opened . . .')
             return conn, cursor
         else:
             return False
@@ -86,7 +90,6 @@ def create_base_table(conn, cursor, end=True):
         LAST_VERSION MESSAGE_TEXT ,
         INSERT_TIME MESSAGE_TEXT NOT NULL,
         LAST_UPDATE MESSAGE_TEXT );''')
-    print('table statistics create successfully . . .')
     if end:
         cursor.close()
         conn.close()
@@ -94,7 +97,7 @@ def create_base_table(conn, cursor, end=True):
 
 def create_backtrack_table(conn, cursor, end=True, **kwargs):
     """
-
+    Create backtrack tables.
     :param conn: Object sqlite Connection
     :param cursor: Object sqlite Cursor
     :param end: Boolean type, if True will be close sqlite connect after this method.
@@ -104,22 +107,34 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     cursor.execute(
         'CREATE TABLE backtrack_%s(CRASH_ID MESSAGE_TEXT, REASON_ID MESSAGE_TEXT, REASON MESSAGE_TEXT, VERSION MESSAGE_TEXT, \
 INSERT_TIME MESSAGE_TEXT NOT NULL, LAST_UPDATE MESSAGE_TEXT );' % kwargs['id'])
-    print('table of %s create successfully . . .' % kwargs['id'])
     if end:
         cursor.close()
         conn.close()
-#
 
-def create_report_table(conn, cursor, end=True, **kwargs):
+
+def create_report_table(conn, cursor, end=True):
+    """
+    Create report tables.
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :return: Nothing to return
+    """
     cursor.execute(
         'CREATE TABLE report(CRASH_ID MESSAGE_TEXT, LOG MESSAGE_TEXT);')
-    print('report table create successfully . . .')
     if end:
         cursor.close()
         conn.close()
 
 
-def create_reasons_table(conn, cursor, end=True, **kwargs):
+def create_reasons_table(conn, cursor, end=True):
+    """
+    Create reasons table.
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :return: Nothing to return
+    """
     cursor.execute('CREATE TABLE reasons(FIXED INT DEFAULT 0, JIRAID MESSAGE_TEXT, FREQUENCY INT DEFAULT 1,\
 REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL, LAST_UPDATE MESSAGE_TEXT)')
     if end:
@@ -127,7 +142,14 @@ REASON MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL, LAST_UPDATE MESSAGE_TEXT
         conn.close()
 
 
-def create_unmatch_table(conn, cursor, end=True, **kwargs):
+def create_unmatch_table(conn, cursor, end=True):
+    """
+    Create unmatch table.
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :return: Nothing to return
+    """
     cursor.execute('CREATE TABLE unmatch(CRASH_ID MESSAGE_TEXT, INSERT_TIME MESSAGE_TEXT NOT NULL)')
     if end:
         cursor.close()
@@ -135,6 +157,13 @@ def create_unmatch_table(conn, cursor, end=True, **kwargs):
 
 
 def create_tables(conn, cursor, tablename, end=True, create=True):
+    """
+    Create table call.
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :return: True or False.
+    """
     exist = "SELECT COUNT(*) FROM sqlite_master where type='table' and name='%s'" % tablename
     if cursor.execute(exist).fetchall()[0][0] == 1:
         return True
@@ -160,19 +189,20 @@ def create_tables(conn, cursor, tablename, end=True, create=True):
 
 def insert(conn, cursor, end=True, **kwargs):
     """
-
+    Insert data to tables.
     :param conn: Object sqlite Connection
     :param cursor: Object sqlite Cursor
     :param end: Boolean type, if True will be close sqlite connect after this method.
     :param kwargs: Included arg1: table_name, arg2: count, arg3:content, arg4:fv, arg5:lv, arg6:uptime
-    :return:
+    :return: Object int. rowid
     """
     inse = str()
     if create_tables(conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
             _inse_cmd_format = "INSERT INTO statistics(FREQUENCY, CONTENT, FIRST_VERSION, LAST_VERSION, INSERT_TIME, LAST_UPDATE) values(?,?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
-                           (kwargs['frequency'], kwargs['content'], kwargs['fv'], kwargs['lv'], get_today_timestamp(), get_today_timestamp()))
+                           (kwargs['frequency'], kwargs['content'], kwargs['fv'], kwargs['lv'], get_today_timestamp(),
+                            get_today_timestamp()))
 
         elif kwargs['table_name'].startswith('backtrack_'):
             _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, VERSION,INSERT_TIME) values(?,?,?)" % kwargs['table_name']
@@ -182,7 +212,8 @@ def insert(conn, cursor, end=True, **kwargs):
             cursor.execute(_inse_cmd_format, (kwargs['crash_id'], kwargs['log']))
         elif kwargs['table_name'] == 'reasons':
             _inse_cmd_format = "INSERT INTO reasons(JIRAID, FREQUENCY, REASON, INSERT_TIME) VALUES(?,?,?,?)"
-            cursor.execute(_inse_cmd_format, (kwargs['jiraid'], kwargs['frequency'], kwargs['reason'], get_today_timestamp()))
+            cursor.execute(_inse_cmd_format,
+                           (kwargs['jiraid'], kwargs['frequency'], kwargs['reason'], get_today_timestamp()))
         elif kwargs['table_name'] == 'unmatch':
             _inse_cmd_format = "INSERT INTO unmatch(CRASH_ID, INSERT_TIME) VALUES(?,?)"
             cursor.execute(_inse_cmd_format, (kwargs['crash_id'], get_today_timestamp()))
@@ -200,12 +231,12 @@ def insert(conn, cursor, end=True, **kwargs):
 
 def update(conn, cursor, end=True, **kwargs):
     """
-
-    :param conn:
-    :param cursor:
-    :param end:
-    :param kwargs:
-    :return:
+    Update data to tables.
+    :param conn: Object sqlite Connection
+    :param cursor: Object sqlite Cursor
+    :param end: Boolean type, if True will be close sqlite connect after this method.
+    :param kwargs: Included arg1: table_name, arg2: columns, arg3:reason, arg4:condition
+    :return: Object int. rowid
     """
     _update_sql = 'UPDATE %s SET ' % kwargs['table_name']
 
@@ -221,8 +252,9 @@ def update(conn, cursor, end=True, **kwargs):
             'condition']
 
     elif 'reason' in kwargs.keys():
-        _update_sql += "%s = \'%s\', LAST_UPDATE = \'%s\' %s" % ('REASON', kwargs['reason'], get_today_timestamp(), kwargs[
-            'condition'])
+        _update_sql += "%s = \'%s\', LAST_UPDATE = \'%s\' %s" % (
+            'REASON', kwargs['reason'], get_today_timestamp(), kwargs[
+                'condition'])
 
     cursor.execute(_update_sql)
     conn.commit()
@@ -241,10 +273,11 @@ def update(conn, cursor, end=True, **kwargs):
 
 def search(conn, cursor, end=True, only=False, **kwargs):
     """
-
-    :param end:
+    Search data from tables.
+    :param only: DISTINCT option. If True. Will return the only data.
     :param conn: sqlite3 connection
     :param cursor: Object sqlite3
+    :param end: Boolean type, if True will be close sqlite connect after this method.
     :param kwargs: Included arg1: colum, arg2: table_name, arg3:condition(start with {where})
     :return: List type return. use index to get line's tuple. Then use index of the tuple to get aim data. OR BOOLEAN False.
     """
@@ -267,5 +300,5 @@ def search(conn, cursor, end=True, only=False, **kwargs):
 
         return result
     except sqlite3.OperationalError as e:
-        # TODO : WRITE LOG
+        log.cri(' %-20s ]-[ SQLite search error %s' % (log.get_function_name(), e))
         return False
