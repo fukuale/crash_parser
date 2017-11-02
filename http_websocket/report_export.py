@@ -47,14 +47,18 @@ import csv
 
 try:
     import sqlite_base
+    from logger import Logger
     from similarity_compare import SimilarityCompute
     from post2jira import JIRAHandler
     from parse_crash_log import CrashParser
 except ModuleNotFoundError:
+    from http_websocket.logger import Logger
     import http_websocket.sqlite_base as sqlite_base
     from http_websocket.similarity_compare import SimilarityCompute
     from http_websocket.post2jira import JIRAHandler
     from http_websocket.parse_crash_log import CrashParser
+
+log = Logger('/var/log/CrashParser.log', 'ReportExport')
 
 
 class ReportGenerator(SimilarityCompute):
@@ -67,14 +71,14 @@ class ReportGenerator(SimilarityCompute):
         self.jirahandler = JIRAHandler()
 
     @staticmethod
-    def get_today_timestamp(day=8):
-        today = datetime.datetime.today() - datetime.timedelta(day)
+    def get_today_timestamp():
+        today = datetime.datetime.today() - datetime.timedelta(1)
         return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
 
-    def get_today_from_statistics(self):
+    def get_day_from_statistics(self):
         """
-
-        :return: backtrack_x tables id.
+        Get rowid was updated in a day from statistics table. default is yesterday.
+        :return: List data. rowid list.
         """
         conn, cursor = sqlite_base.sqlite_connect(sql_abs_path=self.statistic_sql)
         _big_than = sqlite_base.search(conn, cursor,
@@ -88,14 +92,14 @@ class ReportGenerator(SimilarityCompute):
 
     def get_crash_reason_all(self):
         """
-
-        :return: List data.
+        Get crash reason from backtrack tables.
+        :return: Generator data. List data.
             0) table_id of backtrack tables.
             1) rowid of table.
             2) crash_id.
             3) reason.
         """
-        _tables_id = self.get_today_from_statistics()
+        _tables_id = self.get_day_from_statistics()
         if _tables_id:
             for table_id in _tables_id:
                 conn, cursor = sqlite_base.sqlite_connect(sql_abs_path=self.statistic_sql)
@@ -110,13 +114,15 @@ class ReportGenerator(SimilarityCompute):
                         _x_reason.insert(0, table_id)
                         yield list(_x_reason)  # one of list data per table.
                 else:
-                    return _tables_id
+                    log.cri(' %-20s ]-[ Table %s not match this insert time: %s' %
+                            (log.get_function_name(), table_id, ReportGenerator.get_today_timestamp()))
         else:
-            return _tables_id
+            log.info(' %-20s ]-[ Look like have not any new crash today: %s' %
+                     (log.get_function_name(), ReportGenerator.get_today_timestamp()))
 
     def get_crash_reason_only(self):
         """
-
+        Make reason data only.
         :return: all tables reason. excluded duplicate data. * include crash_id, reason per data.
         """
         _only_crash_reason = list()
@@ -150,7 +156,7 @@ class ReportGenerator(SimilarityCompute):
                     _only_crash_reason.append(_all_reason)
             return _only_crash_reason
         else:
-            return _gentor
+            return False
 
     @staticmethod
     def range_len_gen(start, end, step):
@@ -179,7 +185,6 @@ class ReportGenerator(SimilarityCompute):
         :param _start: Startswith data size index. Default=1
         :return: Reasons list.
         """
-
         _rows_count = sqlite_base.search(conn, cursor,
                                          end=False,
                                          columns='count(REASON)',
@@ -243,7 +248,7 @@ class ReportGenerator(SimilarityCompute):
         if conn:
             cursor.close()
             conn.close()
-        elif conn2:
+        if conn2:
             cursor2.close()
             conn2.close()
         if _income_reason_only:
@@ -253,13 +258,13 @@ class ReportGenerator(SimilarityCompute):
 
     def update_jira(self):
         conn, cursor = sqlite_base.sqlite_connect('Reasons.sqlite')
-        _now_fre = sqlite_base.search(conn, cursor,
-                                      end=False,
-                                      table_name='reasons',
-                                      columns='ROWID, FIXED, JIRAID, FREQUENCY',
-                                      condition='WHERE JIRAID NOT NULL')
-        for _reasons in _now_fre:
-            print(_reasons)
+        _reasons_sql_data = sqlite_base.search(conn, cursor,
+                                               end=False,
+                                               table_name='reasons',
+                                               columns='ROWID, FIXED, JIRAID, FREQUENCY',
+                                               condition='WHERE JIRAID NOT NULL')
+        for _reasons in _reasons_sql_data:
+
             _version_new = list()
             summary = str()
             _issue = self.jirahandler.read_issue(_reasons[2])
@@ -289,7 +294,7 @@ class ReportGenerator(SimilarityCompute):
             if _version_new or summary:
                 self.jirahandler.update_issue(_issue, _version_new, summary)
             else:
-                print('nothing to update.')
+                log.info(' %-20s ]-[ Issue %s need not to update.' % (log.get_function_name(), _reasons[-2]))
         ReportGenerator.sum_tables()
 
     @staticmethod
@@ -298,6 +303,7 @@ class ReportGenerator(SimilarityCompute):
         _tables = cursor.execute(
             "SELECT name FROM sqlite_master WHERE TYPE=\'table\' AND name LIKE \'backtrack_%\'").fetchall()
         _versions = list()
+        _table = str()
         for i in _tables:
             _version = sqlite_base.search(conn, cursor,
                                           end=False,
@@ -305,13 +311,14 @@ class ReportGenerator(SimilarityCompute):
                                           only=True,
                                           columns='VERSION',
                                           condition='WHERE REASON_ID = %s' % reasonid)
+            _table = i[0]
             _versions.extend(_version)
         if _versions:
             _versions = [x[0] for x in _versions]
             _versions.sort(key=lambda x: tuple(int(v) for v in x.split('.')))
             return _versions
         else:
-            print('error')
+            log.error(' %-20s ]-[ %s cat not find REASON_ID %s .' % (log.get_function_name(), _table, reasonid))
 
     def submit_jira(self):
         _only_crash_id_l = self.match_reason()
@@ -326,7 +333,6 @@ class ReportGenerator(SimilarityCompute):
                                                   table_name='report',
                                                   condition="where CRASH_ID = '%s'" % _crash_id[-2])
                 if _log_finally:
-                    print(type(_log_finally), _log_finally)
                     _log_l = _log_finally[0][0].split('\n')
 
                     __env = '\n'.join(_log_l[1:7])
@@ -364,7 +370,6 @@ class ReportGenerator(SimilarityCompute):
                                                 jiraid=_jira_id.key)
 
                     for i in _crash_id[0].keys():
-                        # conditions = str()
                         conditions = 'WHERE '
                         _ll = _crash_id[0][i]
                         for k, v in enumerate(_ll):
@@ -379,11 +384,13 @@ class ReportGenerator(SimilarityCompute):
                                            condition=conditions)
 
                 else:
-                    print('csv report generation failed !')
+                    log.error(' %-20s ]-[ Table report cat not find CRASH_ID %s .' %
+                              (log.get_function_name(), _crash_id[-2]))
             cursor.close()
             conn.close()
         else:
-            print('Have no new crash now !')
+            log.info(' %-20s ]-[ Look like all crash has been logged.: %s' %
+                     (log.get_function_name(), ReportGenerator.get_today_timestamp()))
 
     @staticmethod
     def sum_tables():
@@ -396,4 +403,4 @@ class ReportGenerator(SimilarityCompute):
             _num += int(cursor.execute("SELECT COUNT(*) FROM %s" % i).fetchall()[0][0])
 
         _reason = cursor2.execute("SELECT SUM(FREQUENCY) FROM reasons").fetchall()[0][0]
-        print('BACKTRACK ALL ITEM: ', _num, 'REASONS ALL ITEM: ', _reason)
+        log.info(' %-20s ]-[ BACKTRACK ALL ITEM: %s , REASONS ALL ITEM: %s' % (log.get_function_name(), _num, _reason))
