@@ -39,7 +39,6 @@
 #                                   |
 import os
 
-import time
 from urllib import parse, request
 
 import tornado.options
@@ -57,11 +56,13 @@ try:
     from get_crash_log import GetCrashInfoFromServer
     from similarity_compare import SimilarityCompute
 except ModuleNotFoundError:
+    from http_websocket.logger import Logger
     from http_websocket.init_dsym import DownloadDSYM
     from http_websocket.parse_crash_log import CrashParser
     from http_websocket.get_crash_log import GetCrashInfoFromServer
     from http_websocket.similarity_compare import SimilarityCompute
 
+log = Logger('/var/log/CrashParser.log', 'Tornado Server')
 define('port', default=7724, type=int)
 
 
@@ -78,25 +79,27 @@ class IndexHandler(RequestHandler):
 
 class ParserHandler(WebSocketHandler):
     def open(self):
-        print('New socket connected !' + str(self))
         self.write_message('WebSocket has been connected !')
         pass
 
     def on_close(self):
-        print('Socket' + str(self) + 'closed ！')
+        log.error('Shocket closed !' + str(self))
         pass
 
     def data_received(self, chunk):
         pass
 
     def on_message(self, message):
+        self.write_message('Trying to parsing...')
         print(message)
         pl = ParsingLog()
         ap = pl.parsing(message)
         if ap:
             self.write_message(ap)
         else:
-            self.write_message('Parsing content FAILED ! Contact [Vincent FUNG] for provide support.')
+            log.error('Nothing return after parsing.' + '\nData in: ' +
+                      message + '\nData end.' + 'Parsing return:\n' + ap)
+            self.write_message('Parsing content FAILED ! Contact [Vincent FUNG] for support.')
 
     def check_origin(self, origin):
         return True
@@ -109,19 +112,20 @@ class SetWebConf(WebSocketHandler):
 
 class ParsingLog(object):
     def __init__(self):
-        self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'conf', '_web_parser.conf')
-        # self.data_res = str()
+        self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'conf')
+        self.conf_files = [z for a, b, x in os.walk(self.conf_dir) for z in x if
+                           not z.startswith('_') and not z.startswith('.')]
 
     def get_product_name(self, raw_data):
-        temp = open(self.conf_dir).readlines()
-        for name in temp:
-            name = name.strip()
-            if raw_data.find(name) >= 0:
-                return name
-            else:
-                return False
+        for k, v in enumerate(self.conf_files):
+            print(type(raw_data))
+            if raw_data.find(os.path.splitext(v)[0]) >= 0:
+                return os.path.splitext(v)[0]
+        else:
+            return False
 
-    def get_env_info(self, raw_data):
+    @staticmethod
+    def get_env_info(raw_data):
         env = CrashParser.get_ver_info(raw_data)
         return env, raw_data
 
@@ -137,10 +141,6 @@ class ParsingLog(object):
                                         version_type=env[-1],
                                         product=p_name)
                 if res_dSYM:
-                    # _reason = CrashParser.get_apple_reason(bytes_in=raw_data)
-                    # sc = SimilarityCompute(versioninfo=env[0], crashid='0000000000')
-                    # _row_id = sc.apple_locate_similarity(_reason)
-
                     _ins_parser = CrashParser(productname=p_name, rawdata=raw_data)
                     _data_res = _ins_parser.atos_run(dSYM_file=res_dSYM,
                                                      product_name=p_name,
@@ -153,8 +153,16 @@ class ParsingLog(object):
             else:
                 return 'Look like log losing a part of content.'
         else:
-            if raw_data.startswith('http'):
-                param = {'row': os.path.split(raw_data)[-1]}
+            if raw_data.startswith('http') or raw_data.startswith('if'):
+                param = dict()
+                if raw_data.startswith('http'):
+                    if raw_data.find('row=') >= 0:
+                        param = {'row': raw_data.split('=')[-1]}
+                    else:
+                        return 'Incomplete Link. Please paste that what link you can see crash information on browser!'
+
+                elif raw_data.startswith('if'):
+                    param = {'row': raw_data}
 
                 parm_encode = parse.urlencode(param).encode('utf-8')
 
@@ -164,10 +172,13 @@ class ParsingLog(object):
                 )
 
                 crash_content = request.urlopen(crash_page).read()
-                _data_res = self.parsing(crash_content.decode())
-                return _data_res
+                if len(crash_content) > 50:
+                    return self.parsing(crash_content.decode())
+                else:
+                    return 'This link address can\'t read any crash information. \nCheck it manully !'
             else:
-                return 'Can\'t read environment information from this log content. \nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
+                return 'Can\'t read environment information from this log content. ' \
+                       '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
 
 
 def run():
