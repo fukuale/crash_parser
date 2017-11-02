@@ -38,8 +38,6 @@
 #                      |  |      (__| (__) (__(_
 #                                   |
 
-import sqlite3
-
 try:
     import sqlite_base
 except ModuleNotFoundError as e:
@@ -60,14 +58,8 @@ class SimilarityCompute(object):
         else:
             return True
 
-    # @staticmethod
-    # def get_standard_percentage(compare_list):
-    #     if len(compare_list) < 10:
-    #         return 0.7
-    #     else:
-    #         return 1
-
-    def compute_similarity(self, compare, be_compare):
+    @staticmethod
+    def compute_similarity(compare, be_compare):
         """
         Compute two list object similarity percentage.
         :param compare: What list need to use for compare.
