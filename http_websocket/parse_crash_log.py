@@ -41,11 +41,15 @@
 import re
 
 try:
+    from logger import Logger
     import subproc
     import sqlite_base
 except ModuleNotFoundError as e:
+    from http_websocket.logger import Logger
     import http_websocket.subproc as subproc
     import http_websocket.sqlite_base as sqlite_base
+
+log = Logger('/var/log/CrashParser.log', 'ParseCrashLog')
 
 
 class CrashParser:
@@ -56,8 +60,8 @@ class CrashParser:
         self.build_number = str()
         self.version_number = str()
         self.proc = subproc.SubProcessBase()
-        self.request_raw = bytes(rawdata)  # MUST DOCODE TO STRING BEFORE PARSING.
-        self.request_lines = self.request_raw.decode().split('\n')  # SPLIT RAW DATA TO LIST
+        self.request_raw = bytes(rawdata)
+        self.request_lines = self.request_raw.decode().split('\n')
 
     def detect_maxtrac(self):
         """
@@ -80,9 +84,9 @@ class CrashParser:
         :return: List object. 1)version code, 2)build number, 3)version type
         """
         # Complier regular expression
-        version = re.compile(r'\d+(\.\d+){0,2}')  # version code
-        build = re.compile(r'[\d]+')  # Consecutive numbers (for build number)
-        type = re.compile(r'[\u4e00-\u9fa5]+')  # Match chinese (for version type)
+        _version = re.compile(r'\d+(\.\d+){0,2}')       # version code
+        _build = re.compile(r'[\d]+')                   # Consecutive numbers (for build number)
+        _ver_type = re.compile(r'[\u4e00-\u9fa5]+')     # Match chinese (for version type)
         content = list()
         if isinstance(data_in, bytes):
             content = data_in.decode().split('\n')
@@ -91,12 +95,12 @@ class CrashParser:
         elif isinstance(data_in, list):
             content = data_in
 
-        # Get info
+        # Parsing version info
         for i in content:
             if 'version' in i:
-                version_code = version.search(i)
-                build_number = build.findall(i)
-                if type.findall(i)[0] == '正式版':
+                version_code = _version.search(i)
+                build_number = _build.findall(i)
+                if _ver_type.findall(i)[0] == '正式版':
                     return [version_code.group(0), build_number[-1], 'appstore']
                 else:
                     return [version_code.group(0), build_number[-1], 'dev']
@@ -111,10 +115,11 @@ class CrashParser:
         for reason in content:
             if reason.startswith('reason:') or reason.startswith('ERROR:'):
                 return reason
+        log.error(' %-20s ]-[ This content is not included Apple Reason data.' % (log.get_function_name()))
 
     def get_crash_list(self):
         """
-        Get any line included product_name Stacktrac information from crash content.
+        Get any line included product_name Stacktrack information from crash content.
         :return: Two object, 1)List object. The stacktrace_list, 2)String object. CPU Arch type.
         """
         nstacktrace_max, _id = self.detect_maxtrac()
@@ -196,7 +201,7 @@ class CrashParser:
                 self.request_lines[line_id] = '\t' + replace_data
             else:
                 self.request_lines[line_id] = replace_data
-# Crash information insert to sql
+            # Crash information insert to sql
         if tableid:
             conn, cursor = sqlite_base.sqlite_connect()
             sqlite_base.update(conn, cursor,
