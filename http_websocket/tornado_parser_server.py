@@ -51,12 +51,14 @@ from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
 
 try:
+    from task_manager import TaskSchedule
     from logger import Logger
     from init_dsym import DownloadDSYM
     from parse_crash_log import CrashParser
     from get_crash_log import GetCrashInfoFromServer
     from similarity_compare import SimilarityCompute
 except ModuleNotFoundError:
+    from http_websocket.task_manager import TaskSchedule
     from http_websocket.logger import Logger
     from http_websocket.init_dsym import DownloadDSYM
     from http_websocket.parse_crash_log import CrashParser
@@ -92,15 +94,26 @@ class ParserHandler(WebSocketHandler):
         pass
 
     def on_message(self, message):
-        self.write_message('Trying to parsing...')
-        pl = ParsingLog()
-        ap = pl.parsing(message)
-        if ap:
-            self.write_message(ap)
+        if 'guopengzhang' == message:
+            try:
+                ts = TaskSchedule()
+                self.write_message('Trying to parsing... It\'s gonna take a while...')
+                ts.parsing()
+                self.write_message('Parsing finished. Submiting to JIRA... Wait a moment..')
+                ts.jira()
+                self.write_message('All Done!')
+            except Exception:
+                pass
         else:
-            log.error('Nothing return after parsing.' + '\nData in: ' +
-                      message + '\nData end.' + 'Parsing return:\n' + ap)
-            self.write_message('Parsing content FAILED ! Contact [Vincent FUNG] for support.')
+            self.write_message('Trying to parsing...')
+            pl = ParsingLog()
+            ap = pl.parsing(message)
+            if ap:
+                self.write_message(ap)
+            else:
+                log.error('Nothing return after parsing.' + '\nData in: ' +
+                          message + '\nData end.' + 'Parsing return:\n' + ap)
+                self.write_message('Parsing content FAILED ! Contact [Vincent FUNG] for support.')
 
     def check_origin(self, origin):
         return True

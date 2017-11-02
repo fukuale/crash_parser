@@ -362,13 +362,15 @@ class ReportGenerator(SimilarityCompute):
                                                            '</pre>', ''),
                                                        version=__ver,
                                                        priority='urgen')
-                    _rowid = sqlite_base.insert(conn2, cursor2,
-                                                end=False,
-                                                table_name='reasons',
-                                                reason=_crash_id[-1],
-                                                frequency=_crash_id[2],
-                                                jiraid=_jira_id.key)
-
+                    if not isinstance(_jira_id, str):
+                        _rowid = sqlite_base.insert(conn2, cursor2,
+                                                    end=False,
+                                                    table_name='reasons',
+                                                    reason=_crash_id[-1],
+                                                    frequency=_crash_id[2],
+                                                    jiraid=_jira_id.key)
+                    else:
+                        log.cri(' %-20s ]-[ Submit to JIRA error: %s .' % (log.get_function_name(), _jira_id))
                     for i in _crash_id[0].keys():
                         conditions = 'WHERE '
                         _ll = _crash_id[0][i]

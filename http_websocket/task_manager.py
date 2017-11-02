@@ -49,7 +49,6 @@ try:
     from init_dsym import DownloadDSYM
     from subproc import SubProcessBase
     from report_export import ReportGenerator
-    import tornado_parser_server
 except ModuleNotFoundError:
     from http_websocket.similarity_compare import SimilarityCompute
     from http_websocket.get_crash_log import GetCrashInfoFromServer
@@ -57,7 +56,6 @@ except ModuleNotFoundError:
     from http_websocket.init_dsym import DownloadDSYM
     from http_websocket.subproc import SubProcessBase
     from http_websocket.report_export import ReportGenerator
-    import http_websocket.tornado_parser_server
 
 
 class TaskSchedule(object):
@@ -154,9 +152,3 @@ class TaskSchedule(object):
         rg = ReportGenerator(product_name_list=_project_name_l)
         rg.submit_jira()
         rg.update_jira()
-
-
-if __name__ == '__main__':
-    ts = TaskSchedule()
-    ts.parsing()
-    ts.jira()
