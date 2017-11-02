@@ -5,15 +5,19 @@ import hashlib
 from urllib import parse
 from urllib import request
 import datetime
-import os
+import time
 import queue
 
 try:
+    from logger import Logger
     from subproc import SubProcessBase
     from parse_crash_log import CrashParser
 except ModuleNotFoundError as e:
+    from http_websocket.logger import Logger
     from http_websocket.subproc import SubProcessBase
     from http_websocket.parse_crash_log import CrashParser
+
+log = Logger('/var/log/CrashParser.log', 'GetCrashLog')
 
 yesteday = str(datetime.date.today() - datetime.timedelta(1))
 
@@ -49,6 +53,7 @@ class GetCrashInfoFromServer(object):
         Get crash_id from web API
         :return: crash_id, List object.
         """
+        times = 4
         params = {
             'day': date,
             'ver': version,
@@ -61,9 +66,17 @@ class GetCrashInfoFromServer(object):
             url=self.get_ids_url,
             data=url_params
         )
-        task_list = request.urlopen(list_params).read()
-        if task_list:
-            return eval(task_list)
+        try:
+            task_list = request.urlopen(list_params).read()
+            log.info(' %-20s ]-[ Crash id list from server. \n%s' % (log.get_function_name(), ', '.join(task_list)))
+            if task_list:
+                return eval(task_list)
+        except request.HTTPError as httperror:
+            times -= 1
+            log.error(' %-20s ]-[ Get crash ids from server error. info: %s' % (log.get_function_name(), httperror.info()))
+            if times != 0:
+                time.sleep(2)
+                self.get_task_list(version, date)
 
     def get_crash_log(self, version, date=yesteday):
         """
