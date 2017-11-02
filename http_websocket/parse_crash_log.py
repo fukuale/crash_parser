@@ -185,7 +185,6 @@ class CrashParser:
             atos_cmd = ' '.join([
                 atos, arch, cpu_arm_, op, app_symbol,
                 _l, base_addr, memory_addr])
-            print(atos_cmd)
             parse_result = self.proc.sub_procs_run(cmd=atos_cmd)
             if parse_result:
                 result = parse_result.stdout.decode().replace('\n', '')
@@ -193,7 +192,6 @@ class CrashParser:
                 reason_l.append(result)
             else:
                 return False
-            print('atos result ', result)
             # Replace result to finally data
             replace_data = '   '.join([
                 stacktrac_id, produce_name_raw, memory_addr, offset, result])

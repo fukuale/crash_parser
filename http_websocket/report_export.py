@@ -290,7 +290,6 @@ class ReportGenerator(SimilarityCompute):
                 pass
             else:
                 summary = _frequency_exits[:_frequency_exits.find('[Frequency')] + '[Frequency:%s]' % _reasons[-1]
-            print(_version_new, summary)
             if _version_new or summary:
                 self.jirahandler.update_issue(_issue, _version_new, summary)
             else:

@@ -167,7 +167,6 @@ class SimilarityCompute(object):
                                              content=datain,
                                              fv=self.ver_info,
                                              lv=self.ver_info)
-                print('percentage insert ', type(_row_id), _row_id)
                 if _row_id:
                     sqlite_base.insert(conn, cursor,
                                        end=False,

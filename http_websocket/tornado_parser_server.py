@@ -91,7 +91,6 @@ class ParserHandler(WebSocketHandler):
 
     def on_message(self, message):
         self.write_message('Trying to parsing...')
-        print(message)
         pl = ParsingLog()
         ap = pl.parsing(message)
         if ap:
@@ -107,8 +106,7 @@ class ParserHandler(WebSocketHandler):
 
 class SetWebConf(WebSocketHandler):
     def on_message(self, message):
-        print(message)
-
+        pass
 
 class ParsingLog(object):
     def __init__(self):
@@ -118,7 +116,6 @@ class ParsingLog(object):
 
     def get_product_name(self, raw_data):
         for k, v in enumerate(self.conf_files):
-            print(type(raw_data))
             if raw_data.find(os.path.splitext(v)[0]) >= 0:
                 return os.path.splitext(v)[0]
         else:

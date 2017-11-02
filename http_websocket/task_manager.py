@@ -137,7 +137,6 @@ class TaskSchedule(object):
                                            build_id=_dsym_parms[1],
                                            version_type=_dsym_parms[-1],
                                            product=tuple_env_log[1])
-            print('res_dSYM', res_dSYM)
             if res_dSYM:
                 _reason = CrashParser.get_apple_reason(bytes_in=tuple_env_log[-1][-1])
 
