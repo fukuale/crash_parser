@@ -44,6 +44,7 @@ class TaskSchedule(object):
         # Instance base class.
         self.get_log = GetCrashInfoFromServer()
         self.dSYM = DownloadDSYM()
+        self.parser = CrashParser()
 
     def gen_version_list(self):
         """
@@ -71,57 +72,11 @@ class TaskSchedule(object):
         """
         for version in self.gen_version_list():
             _c_log = self.get_log.gen_task_log(version=version)
-            for names in self.conf_files:
-                for _log in _c_log:
+            for _log in _c_log:
+                for names in self.conf_files:
                     if os.path.splitext(names)[0] in _log[-1].decode():
                         _product_name = os.path.splitext(names)[0]
                         yield _log[0], _log[1], _product_name
-
-    def parsing(self, raw_data, product_name=0, task_id=0):
-        """
-        Parsing
-        :param raw_data:
-        :param product_name:
-        :param task_id:
-        :return:
-        """
-        # Set value to _product_name when product name was detected.
-        if not product_name:
-            for names in self.conf_files:
-                if os.path.splitext(names)[0] in raw_data:
-                    product_name = os.path.splitext(names)[0]
-                    if '_HOC' in raw_data:
-                        product_name += '_HOC'
-                    break
-            if not product_name:
-                raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
-
-        # Get version info from raw data.
-        _version_info = CrashParser.get_ver_info(raw_data)
-
-        # Download dSYM file if not exists.
-        abs_dsym = self.dSYM.init_dSYM(version_number=_version_info[0],
-                                       build_id=_version_info[1],
-                                       version_type=_version_info[-1],
-                                       product=product_name)
-
-        # Get apple reason.
-        _reason = CrashParser.get_apple_reason(raw_data=raw_data)
-
-        # Compute similarity with old data.
-        _sc = SimilarityCompute(versioninfo=_version_info[0], crashid=task_id)
-        _row_id = _sc.apple_locate_similarity(_reason)
-
-        # Parse Stacktrace information.
-        _ins_parser = None
-        if isinstance(raw_data, str):
-            _ins_parser = CrashParser(productname=product_name, rawdata=raw_data.encode())
-        elif isinstance(raw_data, bytes):
-            _ins_parser = CrashParser(productname=product_name, rawdata=raw_data)
-        _final_data = _ins_parser.atos_run(dSYM_file=abs_dsym,
-                                           tableid=_row_id,
-                                           crash_id=task_id)
-        return _final_data
 
     def run_parser(self, raw_data=None, queue_in=None):
         if raw_data.startswith('http') or raw_data.startswith('if'):
@@ -137,20 +92,26 @@ class TaskSchedule(object):
 
             crash_content = self.get_log.get_crash_log(task_id=task_id)
             if len(crash_content) > 100:
-                return self.parsing(crash_content.decode())
+                return self.parser.parsing(raw_data=crash_content,
+                                           conf_files=self.conf_files)
             else:
                 return 'Can\'t read any content from the link. \nCheck it manully !'
         elif 'version' in raw_data:
-            return self.parsing(raw_data=raw_data)
+            return self.parser.parsing(raw_data=raw_data,
+                                       conf_files=self.conf_files)
         elif 'guopengzhang' == raw_data:
             for crash_info in self.read_log_from_server():
-                env = CrashParser.get_ver_info(crash_info[1])
+                env = self.parser.get_ver_info(crash_info[1])
                 abs_dsym = self.dSYM.init_dSYM(version_number=env[0],
                                                build_id=env[1],
                                                version_type=env[-1],
                                                product=crash_info[-1])
                 if abs_dsym:
-                    self.parsing(raw_data=crash_info[1], product_name=crash_info[-1], task_id=crash_info[0])
+                    self.parser.parsing(raw_data=crash_info[1],
+                                        product_name=crash_info[-1],
+                                        task_id=crash_info[0],
+                                        conf_files=self.conf_files)
+            self.jira()
         else:
             return 'Can\'t read environment information from this log content. ' \
                    '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
