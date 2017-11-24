@@ -18,18 +18,15 @@ log = Logger(log_file, 'SubProcessBase')
 
 def popen_judge(popen_obj, method_name, parameters):
     if popen_obj.returncode == 0:
-        if popen_obj.stdout and not popen_obj.stderr:
-            log.debug(' %-20s ]-[ Return: %s' % (method_name, popen_obj.stdout))
-            return popen_obj
-        else:
-            return 1
+        log.debug(' %-20s ]-[ Return: %s' % (method_name, popen_obj.stdout))
+        return popen_obj
     elif popen_obj.returncode != 0 and popen_obj.stderr:
         log.cri(
             ' %-20s ]-[ System cmd execution err: %s, code:%s, incoming parameters: %s' % (
                 method_name, popen_obj.stderr, str(popen_obj.returncode), str(parameters)))
         return False
     else:
-        log.error(
+        log.cri(
             ' %-20s ]-[ Unexpected exception: %s, code:%d' %
             (method_name, popen_obj.stderr.decode(), popen_obj.returncode))
         return False

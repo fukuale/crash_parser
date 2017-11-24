@@ -185,7 +185,7 @@
         // Javascript Websocket Client
         function initSocket() {
             if (window.WebSocket) {
-            socket = new WebSocket('ws://192.168.1.100:7724/push_crash');
+            socket = new WebSocket('ws://10.0.13.12:7724/push_crash');
 
             socket.onmessage = function(event) {
                 console.log(event);
@@ -195,7 +195,7 @@
 
             socket.onopen = function(event) {
 
-                console.log(socket.status, event.type)
+                console.log(socket.status, event.type);
                 document.getElementById('btnSend').innerHTML = 'submit';
 
             };

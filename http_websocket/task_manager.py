@@ -1,48 +1,11 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/09/20'
-#                       ::
-#                      :;J7, :,                        ::;7:
-#                      ,ivYi, ,                       ;LLLFS:
-#                      :iv7Yi                       :7ri;j5PL
-#                     ,:ivYLvr                    ,ivrrirrY2X,
-#                     :;r;j5P.7r:                :ivuksxerfnli.
-#                    :iL7::,:::iiirii:ii;::::,,irvF7rvvLujL7ur
-#                   ri::,:,::i:iiiiiii:i:irrv177JX7rYXqZEkvv17
-#                ;i:, , ::::iirrririi:i:::iiir2XXvii;L8OGJr71i
-#              :,, ,,:   ,::irii:i:::.irii:i:::j1jri7ZBOS7ivv,
-#                 ,::,    ::rv77iiiriii:iii:i::,rvLrYXqZEk.Li
-#             ,,      ,, ,:ir7ir::,:::i;ir:::i:i::rSGGYri712:
-#           :::  ,v7r:: ::rrv77:, ,, ,:i7rrii:::::, ir7ri7Lri
-#          ,     2OBBOi,iiir;r::        ,irriiii::,, ,iv7Luur:
-#        ,,     i78MBBi,:,:::,:,  :7FSL: ,iriii:::i::,,:rLqXv::
-#        :      iuMMP: :,:::,:ii;YRDEBB0viiii:i:iii:i:::iJqL;::
-#       ,     ::::i   ,,,,, ::LuBBu BBBBBErii:i:i:i:i:i:i:r77ii
-#      ,       :       , ,,:::rruBZ1MBBqi, :,,,:::,::::::iiriri:
-#     ,               ,,,,::::i:  :i:i:i:i.       ,:,, ,:::ii;i7:
-#    :,       rjujLYLi   ,,:::::,:::::::::,,   ,:i,:,,,,,::i:iii
-#    ::      BBBBBBBBB0,    ,,::: , ,:::::: ,      ,,,, ,,:::::::
-#    i,  ,  ,8@VINCENTBBi     ,,:,,     ,,, , ,   , , , :,::ii::i::
-#    :      iZMOMOMBBM2::::::::::,,,,     ,,,,,,:,,,::::i:irr:i:::,
-#    i   ,,:;u0MBMOG1L:::i::::::  ,,,::,   ,,, ::::::i:i:iirii:i:i:
-#    :    ,iuUuuXUkFu7i:iii:i:::, :,:,: ::::::::i:i:::::iirr7iiri::
-#    :     :rkwwiBivf.i:::::, ,:ii:::::::i:::::i::,::::iirrriiiri::,
-#     :      5BMBBBBBBSr:,::rv2kuii:::iii::,:i:,, , ,,:,:ia5wf88s5.,
-#          , :r50EZLEAVEMEALONEP7::::i::,:::::,: :,:,::i;rrririiii::
-#              :jujYY7LS0ujJL7r::,::i::,::::::::::::::iirirrrrrrr:ii:
-#           ,:  :::,: :,,:,,,::::i:i:::::::::::,,:::::iir;ii;7v7;ii;i,
-#           ,,,     ,,:,::::::i:iiiii:i::::,, ::::iiiii;L8OGJrf.r;7:i,
-#        , , ,,,:,,::::::::iiiiiiiiii:,:,:::::::::iiir;ri7vL77rrirri::
-#         :,, , ::::::::i:::i:::i:i::,,,,,:,::i:i:::iir;:::i:::i:ii:::
-#                          _
-#                      o _|_           __
-#                      |  |      (__| (__) (__(_
-#                                   |
-
 
 import os
 
 # Cause IDE need parent folder name to import other class, shell need not.
 try:
+    from parser_exception import ParseBaseInformationException
     from similarity_compare import SimilarityCompute
     from get_crash_log import GetCrashInfoFromServer
     from parse_crash_log import CrashParser
@@ -50,6 +13,7 @@ try:
     from subproc import SubProcessBase
     from report_export import ReportGenerator
 except ModuleNotFoundError:
+    from http_websocket.parser_exception import ParseBaseInformationException
     from http_websocket.similarity_compare import SimilarityCompute
     from http_websocket.get_crash_log import GetCrashInfoFromServer
     from http_websocket.parse_crash_log import CrashParser
@@ -94,7 +58,7 @@ class TaskSchedule(object):
             _v_list = open(os.path.join(self.conf_dir, v), 'r', encoding='utf-8').readlines()
             for vn in _v_list:
                 if vn:
-                    yield vn.strip(), os.path.splitext(v)[0]
+                    yield vn.strip()
 
     # Get the crash log generator
     def read_log_from_server(self):
@@ -106,46 +70,90 @@ class TaskSchedule(object):
             1) version[1] : this is str(product_name)
         """
         for version in self.gen_version_list():
-            _c_log = self.get_log.get_crash_log(version=version[0])
-            yield _c_log, version[1]
+            _c_log = self.get_log.gen_task_log(version=version)
+            for names in self.conf_files:
+                for _log in _c_log:
+                    if os.path.splitext(names)[0] in _log[-1].decode():
+                        _product_name = os.path.splitext(names)[0]
+                        yield _log[0], _log[1], _product_name
 
-    # Reparsing verson enviornment information from crash log to generation version info, product name and crash log.
-    def get_env_info(self):
+    def parsing(self, raw_data, product_name=0, task_id=0):
         """
-        Parsing a part of crash log information to get the environment information.
-        Generation tuple data.
+        Parsing
+        :param raw_data:
+        :param product_name:
+        :param task_id:
         :return:
-            0) env : [version_code, build_number, version_type]
-            1) _ver_info[1] : Inherited from gen_version_list(), this is str(product_name)
-            2) _crash_info : tuple data. [0] is crash_id, like: if-2007876330-1507164162867, [1] is crash_log.
         """
-        for _ver_info in self.read_log_from_server():
-            for _crash_info in _ver_info[0]:
-                env = CrashParser.get_ver_info(_crash_info[-1])
-                yield env, _ver_info[1], _crash_info
+        # Set value to _product_name when product name was detected.
+        if not product_name:
+            for names in self.conf_files:
+                if os.path.splitext(names)[0] in raw_data:
+                    product_name = os.path.splitext(names)[0]
+                    if '_HOC' in raw_data:
+                        product_name += '_HOC'
+                    break
+            if not product_name:
+                raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
 
-    def parsing(self):
-        """
-        Parsing crash log call.
-        :return: Nothing to return.
-        """
-        for tuple_env_log in self.get_env_info():
-            _dsym_parms = tuple_env_log[0]
-            res_dSYM = self.dSYM.init_dSYM(version_number=_dsym_parms[0],
-                                           build_id=_dsym_parms[1],
-                                           version_type=_dsym_parms[-1],
-                                           product=tuple_env_log[1])
-            if res_dSYM:
-                _reason = CrashParser.get_apple_reason(bytes_in=tuple_env_log[-1][-1])
+        # Get version info from raw data.
+        _version_info = CrashParser.get_ver_info(raw_data)
 
-                sc = SimilarityCompute(versioninfo=_dsym_parms[0], crashid=tuple_env_log[-1][0])
-                _row_id = sc.apple_locate_similarity(_reason)
+        # Download dSYM file if not exists.
+        abs_dsym = self.dSYM.init_dSYM(version_number=_version_info[0],
+                                       build_id=_version_info[1],
+                                       version_type=_version_info[-1],
+                                       product=product_name)
 
-                _ins_parser = CrashParser(productname=tuple_env_log[1], rawdata=tuple_env_log[-1][-1])
-                _ins_parser.atos_run(dSYM_file=res_dSYM,
-                                     product_name=tuple_env_log[1],
-                                     tableid=_row_id,
-                                     crash_id=tuple_env_log[-1][0])
+        # Get apple reason.
+        _reason = CrashParser.get_apple_reason(raw_data=raw_data)
+
+        # Compute similarity with old data.
+        _sc = SimilarityCompute(versioninfo=_version_info[0], crashid=task_id)
+        _row_id = _sc.apple_locate_similarity(_reason)
+
+        # Parse Stacktrace information.
+        _ins_parser = None
+        if isinstance(raw_data, str):
+            _ins_parser = CrashParser(productname=product_name, rawdata=raw_data.encode())
+        elif isinstance(raw_data, bytes):
+            _ins_parser = CrashParser(productname=product_name, rawdata=raw_data)
+        _final_data = _ins_parser.atos_run(dSYM_file=abs_dsym,
+                                           tableid=_row_id,
+                                           crash_id=task_id)
+        return _final_data
+
+    def run_parser(self, raw_data=None, queue_in=None):
+        if raw_data.startswith('http') or raw_data.startswith('if'):
+            task_id = str()
+            if raw_data.startswith('http'):
+                if raw_data.find('row=') >= 0:
+                    task_id = raw_data.split('=')[-1]
+                else:
+                    return 'Incomplete Link. Please paste that what link you can see crash information on browser!'
+
+            elif raw_data.startswith('if'):
+                task_id = raw_data
+
+            crash_content = self.get_log.get_crash_log(task_id=task_id)
+            if len(crash_content) > 100:
+                return self.parsing(crash_content.decode())
+            else:
+                return 'Can\'t read any content from the link. \nCheck it manully !'
+        elif 'version' in raw_data:
+            return self.parsing(raw_data=raw_data)
+        elif 'guopengzhang' == raw_data:
+            for crash_info in self.read_log_from_server():
+                env = CrashParser.get_ver_info(crash_info[1])
+                abs_dsym = self.dSYM.init_dSYM(version_number=env[0],
+                                               build_id=env[1],
+                                               version_type=env[-1],
+                                               product=crash_info[-1])
+                if abs_dsym:
+                    self.parsing(raw_data=crash_info[1], product_name=crash_info[-1], task_id=crash_info[0])
+        else:
+            return 'Can\'t read environment information from this log content. ' \
+                   '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
 
     def jira(self):
         _project_name_l = [os.path.splitext(x)[0] for x in self.conf_files]

@@ -1,50 +1,15 @@
 # -*- coding:utf-8 -*-
 # Author = 'Vincent FUNG'
 # Create = '2017/09/21'
-#                       ::
-#                      :;J7, :,                        ::;7:
-#                      ,ivYi, ,                       ;LLLFS:
-#                      :iv7Yi                       :7ri;j5PL
-#                     ,:ivYLvr                    ,ivrrirrY2X,
-#                     :;r;j5P.7r:                :ivuksxerfnli.
-#                    :iL7::,:::iiirii:ii;::::,,irvF7rvvLujL7ur
-#                   ri::,:,::i:iiiiiii:i:irrv177JX7rYXqZEkvv17
-#                ;i:, , ::::iirrririi:i:::iiir2XXvii;L8OGJr71i
-#              :,, ,,:   ,::irii:i:::.irii:i:::j1jri7ZBOS7ivv,
-#                 ,::,    ::rv77iiiriii:iii:i::,rvLrYXqZEk.Li
-#             ,,      ,, ,:ir7ir::,:::i;ir:::i:i::rSGGYri712:
-#           :::  ,v7r:: ::rrv77:, ,, ,:i7rrii:::::, ir7ri7Lri
-#          ,     2OBBOi,iiir;r::        ,irriiii::,, ,iv7Luur:
-#        ,,     i78MBBi,:,:::,:,  :7FSL: ,iriii:::i::,,:rLqXv::
-#        :      iuMMP: :,:::,:ii;YRDEBB0viiii:i:iii:i:::iJqL;::
-#       ,     ::::i   ,,,,, ::LuBBu BBBBBErii:i:i:i:i:i:i:r77ii
-#      ,       :       , ,,:::rruBZ1MBBqi, :,,,:::,::::::iiriri:
-#     ,               ,,,,::::i:  :i:i:i:i.       ,:,, ,:::ii;i7:
-#    :,       rjujLYLi   ,,:::::,:::::::::,,   ,:i,:,,,,,::i:iii
-#    ::      BBBBBBBBB0,    ,,::: , ,:::::: ,      ,,,, ,,:::::::
-#    i,  ,  ,8@VINCENTBBi     ,,:,,     ,,, , ,   , , , :,::ii::i::
-#    :      iZMOMOMBBM2::::::::::,,,,     ,,,,,,:,,,::::i:irr:i:::,
-#    i   ,,:;u0MBMOG1L:::i::::::  ,,,::,   ,,, ::::::i:i:iirii:i:i:
-#    :    ,iuUuuXUkFu7i:iii:i:::, :,:,: ::::::::i:i:::::iirr7iiri::
-#    :     :rkwwiBivf.i:::::, ,:ii:::::::i:::::i::,::::iirrriiiri::,
-#     :      5BMBBBBBBSr:,::rv2kuii:::iii::,:i:,, , ,,:,:ia5wf88s5.,
-#          , :r50EZLEAVEMEALONEP7::::i::,:::::,: :,:,::i;rrririiii::
-#              :jujYY7LS0ujJL7r::,::i::,::::::::::::::iirirrrrrrr:ii:
-#           ,:  :::,: :,,:,,,::::i:i:::::::::::,,:::::iir;ii;7v7;ii;i,
-#           ,,,     ,,:,::::::i:iiiii:i::::,, ::::iiiii;L8OGJrf.r;7:i,
-#        , , ,,,:,,::::::::iiiiiiiiii:,:,:::::::::iiir;ri7vL77rrirri::
-#         :,, , ::::::::i:::i:::i:i::,,,,,:,::i:i:::iir;:::i:::i:ii:::
-#                          _
-#                      o _|_           __
-#                      |  |      (__| (__) (__(_
-#                                   |
 
 import os
 
 try:
     import subproc
+    from parser_exception import ParserException
 except ModuleNotFoundError as e:
     import http_websocket.subproc
+    from http_websocket.parser_exception import ParserException
 
 domain = 'http://10.0.2.188'
 wegamers_folder = 'GameIM'
@@ -65,11 +30,11 @@ class DownloadDSYM(object):
 
     def init_dSYM(self, build_id, version_number, version_type, product):
         """
-        Call all method to download dSYM file and rename it after unzipping.
+        Call all method to download dSYM file and rename after unzipping.
         :param build_id: String object. SVN code. eg.11311
         :param version_number: String object. eg.1.9.5
-        :param version_type: String object. Default appstore
-        :param product: String object. Default wegamers
+        :param version_type: String object. Application type, Default appstore
+        :param product: String object. Product name, Default wegamers
         :return: String object. The dSYM absolute folder address.
         """
         _dSYM_name = '%s_%s.DSYM' % (product, build_id)
@@ -90,7 +55,7 @@ class DownloadDSYM(object):
                     # Valid files when the file size is more than 20MB
                     if os.path.getsize(os.path.join(os.path.join(
                             self.default_download_folder, _abs_dSYM))) > 20480:
-                        unzip_zip_cmd = 'unzip %s -d %s' % (
+                        unzip_zip_cmd = 'unzip -o %s -d %s' % (
                             os.path.join(self.default_download_folder, _abs_dSYM),
                             self.default_download_folder)
                         unzip_res = self.proc.sub_procs_run(cmd=unzip_zip_cmd)
@@ -106,14 +71,7 @@ class DownloadDSYM(object):
                             os.rename(os.path.join(self.default_download_folder, result),
                                       _abs_dSYM)
                             return _abs_dSYM
-                        else:
-                            return False
-                    else:
-                        return False
-                else:
-                    return False
-            else:
-                return False
+        raise ParserException
 
     def make_http_download_addr(self, build_id, version_number, version_type='appsotre', product='wegamers'):
         """
@@ -139,13 +97,13 @@ class DownloadDSYM(object):
         return os.path.join(
             domain, wegamers_folder, platform, appstore, _abs_dSYM)
 
-    def wegamers_dev(self, **kwargs):
+    def wegamers_hoc_dev(self, **kwargs):
         """
         WeGamers Develop dSYM download link maker
         :param kwargs: Accept 1)version_number, 2)build_id
         :return: String object. download link
         """
-        _abs_dSYM = 'WeGamers_Enterprise_v%s\(r%s\)-dSYM.zip' % (
+        _abs_dSYM = 'WeGamers_Enterprise_v%s\(r%s\).app.dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
             domain, wegamers_folder, platform, dev, _abs_dSYM)
@@ -158,13 +116,13 @@ class DownloadDSYM(object):
         """
         pass
 
-    def gamelive_dev(self, **kwargs):
+    def gamelive_hoc_dev(self, **kwargs):
         """
         GameLive Develop dSYM download link maker
         :param kwargs: Accept 1)version_number, 2)build_id
         :return: String object. download link
         """
-        _abs_dSYM = 'GameLive_Enterprise_v%s\(r%s\)-dSYM.zip' % (
+        _abs_dSYM = 'GameLive_Enterprise_v%s\(r%s\).app.dSYM.zip' % (
             kwargs['version_number'], kwargs['build_id'])
         return os.path.join(
             domain, gamelive_folder, platform, dev, _abs_dSYM)

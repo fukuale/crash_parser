@@ -72,7 +72,8 @@ class GetCrashInfoFromServer(object):
         try:
             task_list = request.urlopen(list_params).read()
             log.info(' %-20s ]-[ Crash id list from server. \n%s' % (log.get_function_name(), str(task_list)))
-            if task_list:
+            if len(task_list) > 10:
+                time.sleep(2)
                 return eval(task_list)
         except request.HTTPError as httperror:
             times -= 1
@@ -81,7 +82,22 @@ class GetCrashInfoFromServer(object):
                 time.sleep(2)
                 self.get_task_list(version, date)
 
-    def get_crash_log(self, version, date=yesteday):
+    def get_crash_log(self, task_id):
+        log.debug(' %-20s ]-[ Get crash log with ID: %s' % (log.get_function_name(), task_id))
+        param = {'row': task_id}
+
+        parm_encode = parse.urlencode(param).encode('utf-8')
+
+        crash_page = request.Request(
+            url=self.read_ids_url,
+            data=parm_encode
+        )
+
+        crash_content = request.urlopen(crash_page).read()
+        log.debug(' %-20s ]-[ Get crash log done!' % log.get_function_name())
+        return crash_content
+
+    def gen_task_log(self, version, date=yesteday):
         """
         Get aim crash_id's content from web API.
         :return: Crash log information. Bytes object
@@ -89,14 +105,5 @@ class GetCrashInfoFromServer(object):
         task_ids = self.get_task_list(version=version, date=date)
         if task_ids:
             for task_id in task_ids:
-                param = {'row': task_id}
-
-                parm_encode = parse.urlencode(param).encode('utf-8')
-
-                crash_page = request.Request(
-                    url=self.read_ids_url,
-                    data=parm_encode
-                )
-
-                crash_content = request.urlopen(crash_page).read()
-                yield task_id, crash_content
+                _crash_log = self.get_crash_log(task_id)
+                yield task_id, _crash_log
