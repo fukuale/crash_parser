@@ -62,7 +62,7 @@ class ParserHandler(WebSocketHandler):
             ts = TaskSchedule()
             data = ts.run_parser(raw_data=message.strip())
             if data:
-                self.write_message(data)
+                self.write_message(str(data))
         else:
             self.write_message('No content was submit.')
 

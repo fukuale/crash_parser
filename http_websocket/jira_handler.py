@@ -1,5 +1,6 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/10/19'
+import re
 
 from jira import JIRA
 from jira import JIRAError
@@ -8,7 +9,7 @@ from jira import JIRAError
 class JIRAHandler(object):
     def __init__(self):
         super(JIRAHandler, self).__init__()
-        self.jira_addr = 'http://10.0.3.100:8080'
+        self.jira_addr = 'http://192.168.1.107:8080'
         self.acc = 'CrashParser'
         self.acc_pwd = 'qwer1234'
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))
@@ -36,7 +37,6 @@ class JIRAHandler(object):
             'assignee': {'name': 'zhaoyefeng'},
             'environment': environment,
             'description': description,
-            # 'reporter': {'name': 'haixiazhang'}
         }
 
         return issue_dict
@@ -108,3 +108,30 @@ class JIRAHandler(object):
             return issue.update(fields={'versions': self.version(version)})
         elif summary and not version:
             return issue.update(fields={'summary': summary})
+
+    def read_project_versions(self, project):
+        _temp_l = list()
+        for vert in self.jira.project_versions(project=project):
+            vers = re.compile(r'\d+(\.\d+){0,5}').search(vert.name)
+            if vers:
+                if len(vers.group(0)) == len(vert.name):
+                    _temp_l.append(vert.name)
+        if _temp_l:
+            _temp_l.sort(key=lambda x: tuple(int(v) for v in x.split('.')))
+            if _temp_l.__len__() < 3:
+                return _temp_l
+            else:
+                return _temp_l[-3], _temp_l[-2], _temp_l[-1]
+
+    def get_projects(self):
+        pjs = list()
+        for pj in self.jira.projects():
+            pjs.append((pj.key, pj.id))
+        return pjs
+
+
+if __name__ == '__main__':
+    jh = JIRAHandler()
+    for i in jh.get_projects():
+        print(i)
+        print(jh.read_project_versions(i[0]))

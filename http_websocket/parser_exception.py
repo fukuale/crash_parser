@@ -18,3 +18,8 @@ class ParseBaseInformationException(Exception):
 class ParseStacktraceInforException(Exception):
     def __init__(self, value):
         self.value = value
+
+
+class ReadFromServerException(Exception):
+    def __init__(self, value):
+        self.value = value

@@ -11,7 +11,9 @@ try:
     from parse_crash_log import CrashParser
     from init_dsym import DownloadDSYM
     from subproc import SubProcessBase
+    from jira_handler import JIRAHandler
     from report_export import ReportGenerator
+    from read_build_ftp import ReadLastBuildFromServer
 except ModuleNotFoundError:
     from http_websocket.parser_exception import ParseBaseInformationException
     from http_websocket.similarity_compare import SimilarityCompute
@@ -19,7 +21,9 @@ except ModuleNotFoundError:
     from http_websocket.parse_crash_log import CrashParser
     from http_websocket.init_dsym import DownloadDSYM
     from http_websocket.subproc import SubProcessBase
+    from http_websocket.jira_handler import JIRAHandler
     from http_websocket.report_export import ReportGenerator
+    from http_websocket.read_build_ftp import ReadLastBuildFromServer
 
 
 class TaskSchedule(object):
@@ -46,37 +50,43 @@ class TaskSchedule(object):
         self.dSYM = DownloadDSYM()
         self.parser = CrashParser()
 
+        # JIRA Handler
+        self.jira = JIRAHandler()
+
+        # Read build svn code
+        self.build_code = ReadLastBuildFromServer()
+
+        # Truth project name
+        self.pjname = {'GAMEIM': 'WeGamers',
+                       'WELIVE': 'StreamCraft'}
+
     def gen_version_list(self):
         """
-        Parsing configuration files on path "~/CrashParser/conf/".
-        Get what version need to parsing.
-        Generation tuple data.
+        Read version info from JIRA server.
         :return:
-            0) vn.strip() : str(version_name), like: v1.9.5 (11311) appstore.
-            1) os.path.splitext(v)[0] : str(product_name)
+            0) self.pjname[proj]: The truth project name with crash log.
+            1) _code_l The last version information of project.
         """
-        for k, v in enumerate(self.conf_files):
-            _v_list = open(os.path.join(self.conf_dir, v), 'r', encoding='utf-8').readlines()
-            for vn in _v_list:
-                if vn:
-                    yield vn.strip()
+        for proj in self.jira.get_projects():
+            if proj:
+                _ver_l = self.jira.read_project_versions(project=proj[0])
+                _code_l = self.build_code.read_last_svn_code(project=proj[0], jira_ver=_ver_l)
+                yield self.pjname[proj[0]], _code_l
 
-    # Get the crash log generator
     def read_log_from_server(self):
         """
         Interpreter generator to get crash log from server.
         Generation tuple data.
         :return:
-            0) _c_log : crash log get generator.
-            1) version[1] : this is str(product_name)
+            0) _log[0]: The id of crash log.
+            1) _log[1]: The crash log content.
+            2) version[0]: The project name.
         """
         for version in self.gen_version_list():
-            _c_log = self.get_log.gen_task_log(version=version)
+            _c_log = self.get_log.gen_task_log(version=version[-1])
             for _log in _c_log:
-                for names in self.conf_files:
-                    if os.path.splitext(names)[0] in _log[-1].decode():
-                        _product_name = os.path.splitext(names)[0]
-                        yield _log[0], _log[1], _product_name
+                if version[0] in _log[-1].decode():
+                    yield _log[0], _log[1], version[0]
 
     def run_parser(self, raw_data=None, queue_in=None):
         if raw_data.startswith('http') or raw_data.startswith('if'):
@@ -100,24 +110,26 @@ class TaskSchedule(object):
             return self.parser.parsing(raw_data=raw_data,
                                        conf_files=self.conf_files)
         elif 'guopengzhang' == raw_data:
-            for crash_info in self.read_log_from_server():
-                env = self.parser.get_ver_info(crash_info[1])
-                abs_dsym = self.dSYM.init_dSYM(version_number=env[0],
-                                               build_id=env[1],
-                                               version_type=env[-1],
-                                               product=crash_info[-1])
-                if abs_dsym:
-                    self.parser.parsing(raw_data=crash_info[1],
-                                        product_name=crash_info[-1],
-                                        task_id=crash_info[0],
-                                        conf_files=self.conf_files)
-            self.jira()
+            try:
+                for crash_info in self.read_log_from_server():
+                    env = self.parser.get_ver_info(crash_info[1])
+                    abs_dsym = self.dSYM.init_dSYM(version_number=env[0],
+                                                   build_id=env[1],
+                                                   version_type=env[-1],
+                                                   product=crash_info[-1])
+                    if abs_dsym:
+                        self.parser.parsing(raw_data=crash_info[1],
+                                            product_name=crash_info[-1],
+                                            task_id=crash_info[0],
+                                            conf_files=self.conf_files)
+            except Exception as e:
+                return e.__str__()
+
         else:
             return 'Can\'t read environment information from this log content. ' \
                    '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
 
     def jira(self):
-        _project_name_l = [os.path.splitext(x)[0] for x in self.conf_files]
-        rg = ReportGenerator(product_name_list=_project_name_l)
+        rg = ReportGenerator(product_name_list=self.pjname.values())
         rg.submit_jira()
         rg.update_jira()

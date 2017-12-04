@@ -14,10 +14,12 @@ try:
     from logger import Logger
     from subproc import SubProcessBase
     from parse_crash_log import CrashParser
+    from parser_exception import ReadFromServerException
 except ModuleNotFoundError as e:
     from http_websocket.logger import Logger
     from http_websocket.subproc import SubProcessBase
     from http_websocket.parse_crash_log import CrashParser
+    from http_websocket.parser_exception import ReadFromServerException
 
 log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 log = Logger(log_file, 'GetCrashLog')
@@ -102,7 +104,16 @@ class GetCrashInfoFromServer(object):
         Get aim crash_id's content from web API.
         :return: Crash log information. Bytes object
         """
-        task_ids = self.get_task_list(version=version, date=date)
+        task_ids = list()
+        if isinstance(version, str):
+            task_ids = self.get_task_list(version=version, date=date)
+        else:
+            for ver in version:
+                task_ids = self.get_task_list(version=ver, date=date)
+                if task_ids:
+                    break
+        if not task_ids:
+            raise ReadFromServerException('No crash can be read of the last 3 versions.')
         if task_ids:
             for task_id in task_ids:
                 _crash_log = self.get_crash_log(task_id)

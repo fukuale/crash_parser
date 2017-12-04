@@ -19,7 +19,7 @@ except ModuleNotFoundError:
     from http_websocket.logger import Logger
     import http_websocket.sqlite_base as sqlite_base
     from http_websocket.similarity_compare import SimilarityCompute
-    from http_websocket.post2jira import JIRAHandler
+    from http_websocket.jira_handler import JIRAHandler
     from http_websocket.parse_crash_log import CrashParser
 
 log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
@@ -297,6 +297,7 @@ class ReportGenerator(SimilarityCompute):
                                                   table_name='report',
                                                   condition="where CRASH_ID = '%s'" % _crash_id[-2])
                 if _log_finally:
+                    _rowid = int()
                     _log_l = _log_finally[0][0].split('\n')
 
                     __env = '\n'.join(_log_l[1:7])
@@ -306,8 +307,8 @@ class ReportGenerator(SimilarityCompute):
                     for _lines in _log_l:
                         for x in self.product_name_list:
                             if -1 != _lines.find(x):
-                                __proj = x
-                                if __proj:
+                                __projname = x
+                                if __projname:
                                     __cr = ''.join(_lines.split()[4:])
                                     break
                         else:
@@ -317,7 +318,7 @@ class ReportGenerator(SimilarityCompute):
                         continue
 
                     __summary = 'Crash Analysis: ' + __cr + '[Frequency:%s]' % _crash_id[1]
-                    __projname = __proj
+                    # __projname = __proj
 
                     _jira_id = self.jirahandler.create(pjname=__projname,
                                                        summary=__summary,
