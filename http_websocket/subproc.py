@@ -24,6 +24,8 @@ def popen_judge(popen_obj, method_name, parameters):
         log.cri(
             ' %-20s ]-[ System cmd execution err: %s, code:%s, incoming parameters: %s' % (
                 method_name, popen_obj.stderr, str(popen_obj.returncode), str(parameters)))
+        if 'curl' in parameters.values():
+            return popen_obj
         return False
     else:
         log.cri(

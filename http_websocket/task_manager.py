@@ -13,7 +13,7 @@ try:
     from subproc import SubProcessBase
     from jira_handler import JIRAHandler
     from report_export import ReportGenerator
-    from read_build_ftp import ReadLastBuildFromServer
+    from read_build_ftp import ReadVersionInfoFromFTP
 except ModuleNotFoundError:
     from http_websocket.parser_exception import ParseBaseInformationException
     from http_websocket.similarity_compare import SimilarityCompute
@@ -23,7 +23,7 @@ except ModuleNotFoundError:
     from http_websocket.subproc import SubProcessBase
     from http_websocket.jira_handler import JIRAHandler
     from http_websocket.report_export import ReportGenerator
-    from http_websocket.read_build_ftp import ReadLastBuildFromServer
+    from http_websocket.read_build_ftp import ReadVersionInfoFromFTP
 
 
 class TaskSchedule(object):
@@ -54,7 +54,7 @@ class TaskSchedule(object):
         self.jira = JIRAHandler()
 
         # Read build svn code
-        self.build_code = ReadLastBuildFromServer()
+        self.build_code = ReadVersionInfoFromFTP()
 
         # Truth project name
         self.pjname = {'GAMEIM': 'WeGamers',
@@ -65,13 +65,18 @@ class TaskSchedule(object):
         Read version info from JIRA server.
         :return:
             0) self.pjname[proj]: The truth project name with crash log.
-            1) _code_l The last version information of project.
+            1) _code_l: The last 3 version information of project.
         """
         for proj in self.jira.get_projects():
             if proj:
+                # Read last 3 versions of this project from JIRA.
                 _ver_l = self.jira.read_project_versions(project=proj[0])
-                _code_l = self.build_code.read_last_svn_code(project=proj[0], jira_ver=_ver_l)
-                yield self.pjname[proj[0]], _code_l
+                # Splicing version information for read crash ids from server.
+                _version_s = self.build_code.read_last_svn_code(project=proj[0], jira_ver=_ver_l)
+                if _version_s:
+                    yield self.pjname[proj[0]], _version_s
+                else:
+                    raise ParseBaseInformationException('Can not detected version [Project:%s] from build server!' % proj)
 
     def read_log_from_server(self):
         """
@@ -83,11 +88,13 @@ class TaskSchedule(object):
             2) version[0]: The project name.
         """
         for version in self.gen_version_list():
+            # Read log with version information.
             _c_log = self.get_log.gen_task_log(version=version[-1])
             for _log in _c_log:
                 if version[0] in _log[-1].decode():
-                    yield _log[0], _log[1], version[0]
+                    yield _log, version
 
+    # TODO MULTIPLE PROCESS SUPPORT !
     def run_parser(self, raw_data=None, queue_in=None):
         if raw_data.startswith('http') or raw_data.startswith('if'):
             task_id = str()
@@ -103,25 +110,27 @@ class TaskSchedule(object):
             crash_content = self.get_log.get_crash_log(task_id=task_id)
             if len(crash_content) > 100:
                 return self.parser.parsing(raw_data=crash_content,
-                                           conf_files=self.conf_files)
+                                           project_list=self.pjname.values())
             else:
                 return 'Can\'t read any content from the link. \nCheck it manully !'
         elif 'version' in raw_data:
             return self.parser.parsing(raw_data=raw_data,
-                                       conf_files=self.conf_files)
+                                       project_list=self.pjname.values())
+        # TODO: START AT HERE.
         elif 'guopengzhang' == raw_data:
             try:
                 for crash_info in self.read_log_from_server():
-                    env = self.parser.get_ver_info(crash_info[1])
+                    env = self.parser.get_ver_info(crash_info[-1][-1])
+                    # TODO: PROCESSING.
                     abs_dsym = self.dSYM.init_dSYM(version_number=env[0],
                                                    build_id=env[1],
                                                    version_type=env[-1],
-                                                   product=crash_info[-1])
+                                                   product=crash_info[-1][0])
                     if abs_dsym:
-                        self.parser.parsing(raw_data=crash_info[1],
-                                            product_name=crash_info[-1],
-                                            task_id=crash_info[0],
-                                            conf_files=self.conf_files)
+                        self.parser.parsing(raw_data=crash_info[0][-1],
+                                            product_name=crash_info[-1][0],
+                                            task_id=crash_info[0][0],
+                                            project_list=self.pjname.values())
             except Exception as e:
                 return e.__str__()
 

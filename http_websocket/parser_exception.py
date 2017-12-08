@@ -23,3 +23,8 @@ class ParseStacktraceInforException(Exception):
 class ReadFromServerException(Exception):
     def __init__(self, value):
         self.value = value
+
+
+class FailedToDownloadSYM(Exception):
+    def __init__(self, value):
+        self.value = value

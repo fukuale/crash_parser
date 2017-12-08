@@ -56,8 +56,9 @@ class GetCrashInfoFromServer(object):
     def get_task_list(self, version, date):
         """
         Get crash_id from web API
-        :return: crash_id, List object.
+        :return: List object. Crash ids.
         """
+        # Define retry times.
         times = 4
         params = {
             'day': date,
@@ -73,10 +74,12 @@ class GetCrashInfoFromServer(object):
         )
         try:
             task_list = request.urlopen(list_params).read()
-            log.info(' %-20s ]-[ Crash id list from server. \n%s' % (log.get_function_name(), str(task_list)))
+            log.info(' %-20s ]-[ Crash id list from server: \n%s' % (log.get_function_name(), str(task_list)))
+            # Validation data validity.
             if len(task_list) > 10:
-                time.sleep(2)
+                # Source data transition to list type.
                 return eval(task_list)
+        # Retry for HTTP 404 temporary
         except request.HTTPError as httperror:
             times -= 1
             log.error(' %-20s ]-[ Get crash ids from server error. info: %s' % (log.get_function_name(), httperror.info()))
@@ -85,6 +88,11 @@ class GetCrashInfoFromServer(object):
                 self.get_task_list(version, date)
 
     def get_crash_log(self, task_id):
+        """
+        Get crash log from server.
+        :param task_id: one id for API.
+        :return: String object.
+        """
         log.debug(' %-20s ]-[ Get crash log with ID: %s' % (log.get_function_name(), task_id))
         param = {'row': task_id}
 
@@ -96,25 +104,24 @@ class GetCrashInfoFromServer(object):
         )
 
         crash_content = request.urlopen(crash_page).read()
-        log.debug(' %-20s ]-[ Get crash log done!' % log.get_function_name())
+        log.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (log.get_function_name(), task_id))
         return crash_content
 
     def gen_task_log(self, version, date=yesteday):
         """
         Get aim crash_id's content from web API.
-        :return: Crash log information. Bytes object
+        :param version: Version information from task_manager.
+        :param date: Which crash of day want to get. Default is yesterday.
+        :return:
         """
-        task_ids = list()
         if isinstance(version, str):
+            # Get crashes
             task_ids = self.get_task_list(version=version, date=date)
+            if not task_ids:
+                raise ReadFromServerException('No crash can be read of the last 3 versions.')
+            else:
+                for task_id in task_ids:
+                    _crash_log = self.get_crash_log(task_id)
+                    yield task_id, _crash_log
         else:
-            for ver in version:
-                task_ids = self.get_task_list(version=ver, date=date)
-                if task_ids:
-                    break
-        if not task_ids:
-            raise ReadFromServerException('No crash can be read of the last 3 versions.')
-        if task_ids:
-            for task_id in task_ids:
-                _crash_log = self.get_crash_log(task_id)
-                yield task_id, _crash_log
+            raise TypeError('The type error of variable "version". Expected %s. But %s ' % (type(str()), type(version)))

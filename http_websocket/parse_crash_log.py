@@ -54,16 +54,14 @@ class CrashParser:
     @staticmethod
     def get_ver_info(data_in):
         """
-        Get application information from crash log.
-        :return: Tuple object.
-            1)version code
-            2)build number
-            3)version type
+        Get version information from crash log content.
+        :param data_in:
+        :return:
         """
         # Complier regular expression
-        _version = re.compile(r'\d+(\.\d+){0,2}')  # version code
-        _build = re.compile(r'[\d]+')  # Consecutive numbers (for build number)
-        _ver_type = re.compile(r'[\u4e00-\u9fa5]+')  # Match chinese (for version type)
+        _version = re.compile(r'\d+(\.\d+){0,2}')       # version code
+        _build = re.compile(r'[\d]+')                   # Consecutive numbers (for build number)
+        _ver_type = re.compile(r'[\u4e00-\u9fa5]+')     # Match chinese (for version type)
 
         # Change data type to list object.
         content = list()
@@ -216,10 +214,10 @@ class CrashParser:
                                log='\n'.join(crash_list))
         return '\n'.join(crash_list)
 
-    def parsing(self, raw_data, conf_files, product_name=0, task_id=0):
+    def parsing(self, raw_data, project_list, product_name=0, task_id=0):
         """
         Parsing
-        :param conf_files:
+        :param project_list:
         :param raw_data:
         :param product_name:
         :param task_id:
@@ -232,12 +230,12 @@ class CrashParser:
                 _raw_data = raw_data.decode()
             else:
                 _raw_data = raw_data
-            for names in conf_files:
+            for names in project_list:
                 if os.path.splitext(names)[0] in _raw_data:
                     product_name = os.path.splitext(names)[0]
-                    if '_HOC' in _raw_data:
-                        product_name += '_HOC'
-                    break
+                    # if '_HOC' in _raw_data:
+                    #     product_name += '_HOC'
+                    # break
             if not product_name:
                 raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
 
