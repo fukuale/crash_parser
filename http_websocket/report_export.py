@@ -9,18 +9,18 @@ import time
 import types
 import csv
 
-try:
-    import sqlite_base
-    from logger import Logger
-    from similarity_compare import SimilarityCompute
-    from post2jira import JIRAHandler
-    from parse_crash_log import CrashParser
-except ModuleNotFoundError:
-    from http_websocket.logger import Logger
-    import http_websocket.sqlite_base as sqlite_base
-    from http_websocket.similarity_compare import SimilarityCompute
-    from http_websocket.jira_handler import JIRAHandler
-    from http_websocket.parse_crash_log import CrashParser
+# try:
+import sqlite_base
+from logger import Logger
+from similarity_compare import SimilarityCompute
+from jira_handler import JIRAHandler
+from parse_crash_log import CrashParser
+# except ModuleNotFoundError:
+#     from http_websocket.logger import Logger
+#     import http_websocket.sqlite_base as sqlite_base
+#     from http_websocket.similarity_compare import SimilarityCompute
+#     from http_websocket.jira_handler import JIRAHandler
+#     from http_websocket.parse_crash_log import CrashParser
 
 log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 log = Logger(log_file, 'ReportExport')
@@ -28,7 +28,7 @@ log = Logger(log_file, 'ReportExport')
 
 class ReportGenerator(SimilarityCompute):
     def __init__(self, product_name_list):
-        super(SimilarityCompute, self).__init__()
+        super().__init__()
         self.product_name_list = product_name_list
         self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'database')
         self.report_sql = os.path.join(self.conf_dir, 'ReportInfo.sqlite')
@@ -36,28 +36,29 @@ class ReportGenerator(SimilarityCompute):
         self.jirahandler = JIRAHandler()
 
     @staticmethod
-    def get_today_timestamp():
+    def get_yesterday_timestamp():
         today = datetime.datetime.today() - datetime.timedelta(1)
         return str(int(time.mktime(datetime.datetime(today.year, today.month, today.day, 0, 0, 0).timetuple())))
 
     def get_day_from_statistics(self):
         """
-        Get rowid was updated in a day from statistics table. default is yesterday.
-        :return: List data. rowid list.
+        Get all the rows updated later than some day from statistics table. default is yesterday.
+        # Get all the rows updated on some day from statistics table. default is yesterday.
+        :return: List object. rowid list.
         """
         conn, cursor = sqlite_base.sqlite_connect(sql_abs_path=self.statistic_sql)
-        _big_than = sqlite_base.search(conn, cursor,
-                                       columns='rowid',
-                                       table_name='statistics',
-                                       condition='where LAST_UPDATE > %s' % ReportGenerator.get_today_timestamp())
-        if _big_than:
-            return [x[0] for x in _big_than]
+        _later_than = sqlite_base.search(conn, cursor,
+                                         columns='rowid',
+                                         table_name='statistics',
+                                         condition='where LAST_UPDATE > %s' % ReportGenerator.get_yesterday_timestamp())
+        if _later_than:
+            return [x[0] for x in _later_than]
         else:
-            return _big_than
+            return _later_than
 
-    def get_crash_reason_all(self):
+    def get_all_the_crashes(self):
         """
-        Get crash reason from backtrack tables.
+        Get all the crash reason from backtrack tables.
         :return: Generator data. List data.
             0) table_id of backtrack tables.
             1) rowid of table.
@@ -72,36 +73,40 @@ class ReportGenerator(SimilarityCompute):
                                                  columns='ROWID, CRASH_ID, REASON',
                                                  table_name='backtrack_%d' % table_id,
                                                  condition='where INSERT_TIME > %s and REASON NOT NULL' %
-                                                           ReportGenerator.get_today_timestamp())
+                                                           ReportGenerator.get_yesterday_timestamp())
                 if _new_reason:
                     for _x_reason in _new_reason:
                         _x_reason = list(_x_reason)
                         _x_reason.insert(0, table_id)
-                        yield list(_x_reason)  # one of list data per table.
+                        yield list(_x_reason)
                 else:
                     log.cri(' %-20s ]-[ Table %s not match this insert time: %s' %
-                            (log.get_function_name(), table_id, ReportGenerator.get_today_timestamp()))
+                            (log.get_function_name(), table_id, ReportGenerator.get_yesterday_timestamp()))
         else:
+            # TODO: SQLITE ERROR MESSAGE NOT COMPLETED YET. THAT WILL LET THE LOGIC EXCEPTION IN THE CALL METHOD.
             log.info(' %-20s ]-[ Look like have not any new crash today: %s' %
-                     (log.get_function_name(), ReportGenerator.get_today_timestamp()))
+                     (log.get_function_name(), ReportGenerator.get_yesterday_timestamp()))
 
     def get_crash_reason_only(self):
         """
         Make reason data only.
         :return: all tables reason. excluded duplicate data. * include crash_id, reason per data.
         """
+        # TODO: DEFIND HERE. BUT THIS IS A EMPTY LIST....
         _only_crash_reason = list()
-        _gentor = self.get_crash_reason_all()
+        _gentor = self.get_all_the_crashes()
         if _gentor:
-            for _all_reason in self.get_crash_reason_all():  # Get one crash_id data
-                _all_reason_clear = self.variable_remove(_all_reason[-1])  # REASON
-                if _only_crash_reason:  # only list isn't empty
+            for _per_reason in _gentor:  # Get one crash_id data
+                _all_reason_clear = self.variable_remove(_per_reason[-1])  # REASON
+                # TODO: USE LESS JUDGEMENT.
+                if _only_crash_reason:
                     for _only_key, _only_reason in enumerate(_only_crash_reason):  # loop only list item(s).
                         _only_clear = self.variable_remove(_only_reason[-1])
                         _sim_percent = self.compute_similarity(_all_reason_clear, _only_clear)
                         if 1 == _sim_percent:
-                            _table_id = _all_reason[0]
-                            _table_row = _all_reason[1]
+                            _table_id = _per_reason[0]
+                            _table_row = _per_reason[1]
+                            # TODO: BUG
                             _only_crash_reason[_only_key][2] += 1
                             _list = _only_crash_reason[_only_key][0].get(_table_id)
                             if _list:
@@ -111,14 +116,14 @@ class ReportGenerator(SimilarityCompute):
 
                             break
                         if -1 == _only_key - len(_only_crash_reason):
-                            _all_reason.insert(2, 1)
-                            _all_reason[0] = {_all_reason[0]: [_all_reason[1]]}
-                            _only_crash_reason.append(_all_reason)
+                            _per_reason.insert(2, 1)
+                            _per_reason[0] = {_per_reason[0]: [_per_reason[1]]}
+                            _only_crash_reason.append(_per_reason)
                             break
                 else:
-                    _all_reason.insert(2, 1)
-                    _all_reason[0] = {_all_reason[0]: [_all_reason[1]]}
-                    _only_crash_reason.append(_all_reason)
+                    _per_reason.insert(2, 1)
+                    _per_reason[0] = {_per_reason[0]: [_per_reason[1]]}
+                    _only_crash_reason.append(_per_reason)
             return _only_crash_reason
         else:
             return False
@@ -357,7 +362,7 @@ class ReportGenerator(SimilarityCompute):
             conn.close()
         else:
             log.info(' %-20s ]-[ Look like all crash has been logged.: %s' %
-                     (log.get_function_name(), ReportGenerator.get_today_timestamp()))
+                     (log.get_function_name(), ReportGenerator.get_yesterday_timestamp()))
 
     @staticmethod
     def sum_tables():

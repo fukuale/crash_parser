@@ -4,14 +4,14 @@
 
 import os
 
-try:
-    import subproc
-    from parser_exception import FailedToDownloadSYM
-    from read_build_ftp import ReadVersionInfoFromFTP
-except ModuleNotFoundError as e:
-    import http_websocket.subproc
-    from http_websocket.parser_exception import FailedToDownloadSYM
-    from http_websocket.read_build_ftp import ReadVersionInfoFromFTP
+# try:
+import subproc
+from parser_exception import FailedToDownloadSYM
+from read_build_ftp import ReadVersionInfoFromFTP
+# except ModuleNotFoundError as e:
+#     import http_websocket.subproc
+#     from http_websocket.parser_exception import FailedToDownloadSYM
+#     from http_websocket.read_build_ftp import ReadVersionInfoFromFTP
 
 domain = 'http://10.0.2.188'
 wegamers_folder = 'GameIM'
@@ -52,15 +52,15 @@ class DownloadDSYM(object):
             http_addr = self.get_http_download_addr(build_id, version_type, product)
             if http_addr:
                 # Check the download is right with version number.
-                if http_addr.find(version_number) > 0:
+                if http_addr.find(build_id) > 0:
                     pass
                 else:
-                    raise FailedToDownloadSYM('The version number dismatch download link!' + '\n' +
+                    raise FailedToDownloadSYM('The version number dismatch the download link!' + '\n' +
                                               'version: %s' % version_number + '\n' +
                                               'link: %s' % http_addr)
                 # Splicing curl command.
                 download_cmd = 'curl -o %s %s' % (os.path.join(self.default_download_folder, _abs_dSYM), http_addr)
-                # Download file.
+                # Download dSYM file.
                 self.proc.sub_procs_run(cmd=download_cmd)
                 # if download_res:
                 # Valid files when the file size is more than 10MB
@@ -72,12 +72,16 @@ class DownloadDSYM(object):
                     unzip_res = self.proc.sub_procs_run(cmd=unzip_zip_cmd)
                     # Unzip downloaded file successfully.
                     if unzip_res:
+                        # Splicing remove command.
                         del_zip_cmd = 'rm -rf %s' % os.path.join(self.default_download_folder, _abs_dSYM)
                         rm_temp_macosx = 'rm -rf %s' % os.path.join(self.default_download_folder, '__MACOSX/')
+                        # Remove useless file and folder after unzip dSYM file.
                         self.proc.sub_procs_run(cmd=del_zip_cmd)
                         self.proc.sub_procs_run(cmd=rm_temp_macosx)
+                        # Get the unzipped file name.
                         grep_file = 'ls %s | grep %s.app' % (self.default_download_folder, product)
                         result = self.proc.sub_procs_run(cmd=grep_file).stdout.decode().split()[0]
+                        # Rename unzipped file.
                         os.rename(os.path.join(self.default_download_folder, result),
                                   _abs_dSYM)
                         return _abs_dSYM

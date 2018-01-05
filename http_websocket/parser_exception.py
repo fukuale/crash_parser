@@ -3,6 +3,9 @@
 
 
 class ParserException(Exception):
+    """
+    Use for parse logic
+    """
     def __init__(self, value):
         self.value = value
 
@@ -26,5 +29,10 @@ class ReadFromServerException(Exception):
 
 
 class FailedToDownloadSYM(Exception):
+    def __init__(self, value):
+        self.value = value
+
+
+class BreakProcessing(Exception):
     def __init__(self, value):
         self.value = value

@@ -10,26 +10,27 @@ import queue
 
 import os
 
-try:
-    from logger import Logger
-    from subproc import SubProcessBase
-    from parse_crash_log import CrashParser
-    from parser_exception import ReadFromServerException
-except ModuleNotFoundError as e:
-    from http_websocket.logger import Logger
-    from http_websocket.subproc import SubProcessBase
-    from http_websocket.parse_crash_log import CrashParser
-    from http_websocket.parser_exception import ReadFromServerException
+# try:
+from logger import Logger
+from subproc import SubProcessBase
+from parse_crash_log import CrashParser
+from parser_exception import ReadFromServerException
+# except ModuleNotFoundError as e:
+#     from http_websocket.logger import Logger
+#     from http_websocket.subproc import SubProcessBase
+#     from http_websocket.parse_crash_log import CrashParser
+#     from http_websocket.parser_exception import ReadFromServerException
 
-log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
-log = Logger(log_file, 'GetCrashLog')
+LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+LOG = Logger(LOG_FILE, 'GetCrashLog')
 
-yesteday = str(datetime.date.today() - datetime.timedelta(1))
+YESTERDAY = str(datetime.date.today() - datetime.timedelta(1))
 
 
 class GetCrashInfoFromServer(object):
-    """docstring for GetCrashInfoFromServer"""
-
+    """
+    Get crash info from server.
+    """
     def __init__(self):
         super(GetCrashInfoFromServer, self).__init__()
         self.sec_key = '8HTm)NZ[K=I0Ju!L%a@Ua!#g29ZPFgm9'
@@ -44,19 +45,27 @@ class GetCrashInfoFromServer(object):
         self.sproc = SubProcessBase()
 
     def get_md5(self, date):
-        """
-        Compute sign key to access crash log API
-        :param date: '%Y-%m-%d' format string. Default is yesterday
-        :return: sign key, String object
+        """Compute sign key to access crash log API
+
+        Arguments:
+            date {String} -- [Date timestamp.]
+
+        Returns:
+            [String] -- [The MD5 of date.]
         """
         md5 = hashlib.md5()
         md5.update((self.sec_key + str(date)).encode())
         return md5.hexdigest().lower()
 
     def get_task_list(self, version, date):
-        """
-        Get crash_id from web API
-        :return: List object. Crash ids.
+        """Get crash_id from web API
+
+        Arguments:
+            version {List} -- [The version from JIRA]
+            date {String} -- [Date timestamp.]
+
+        Returns:
+            [List] -- [The crash ids list.]
         """
         # Define retry times.
         times = 4
@@ -74,7 +83,7 @@ class GetCrashInfoFromServer(object):
         )
         try:
             task_list = request.urlopen(list_params).read()
-            log.info(' %-20s ]-[ Crash id list from server: \n%s' % (log.get_function_name(), str(task_list)))
+            LOG.info(' %-20s ]-[ Crash id list from server: \n%s' % (LOG.get_function_name(), str(task_list)))
             # Validation data validity.
             if len(task_list) > 10:
                 # Source data transition to list type.
@@ -82,7 +91,7 @@ class GetCrashInfoFromServer(object):
         # Retry for HTTP 404 temporary
         except request.HTTPError as httperror:
             times -= 1
-            log.error(' %-20s ]-[ Get crash ids from server error. info: %s' % (log.get_function_name(), httperror.info()))
+            LOG.error(' %-20s ]-[ Get crash ids from server error. info: %s' % (LOG.get_function_name(), httperror.info()))
             if times != 0:
                 time.sleep(2)
                 self.get_task_list(version, date)
@@ -93,7 +102,7 @@ class GetCrashInfoFromServer(object):
         :param task_id: one id for API.
         :return: String object.
         """
-        log.debug(' %-20s ]-[ Get crash log with ID: %s' % (log.get_function_name(), task_id))
+        LOG.debug(' %-20s ]-[ Get crash log with ID: %s' % (LOG.get_function_name(), task_id))
         param = {'row': task_id}
 
         parm_encode = parse.urlencode(param).encode('utf-8')
@@ -104,10 +113,10 @@ class GetCrashInfoFromServer(object):
         )
 
         crash_content = request.urlopen(crash_page).read()
-        log.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (log.get_function_name(), task_id))
+        LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), task_id))
         return crash_content
 
-    def gen_task_log(self, version, date=yesteday):
+    def gen_task_log(self, version, date=YESTERDAY):
         """
         Get aim crash_id's content from web API.
         :param version: Version information from task_manager.

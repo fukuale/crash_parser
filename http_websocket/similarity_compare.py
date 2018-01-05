@@ -1,10 +1,10 @@
 # Author = 'Vincent FUNG'
 # Create =  '2017/09/28'
 
-try:
-    import sqlite_base
-except ModuleNotFoundError as e:
-    from http_websocket import sqlite_base
+# try:
+import sqlite_base
+# except ModuleNotFoundError as e:
+#     from http_websocket import sqlite_base
 
 
 class SimilarityCompute(object):

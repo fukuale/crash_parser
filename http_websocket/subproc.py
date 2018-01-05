@@ -7,10 +7,10 @@ import sys
 
 import os
 
-try:
-    from logger import Logger
-except ModuleNotFoundError:
-    from http_websocket.logger import Logger
+# try:
+from logger import Logger
+# except ModuleNotFoundError:
+#     from http_websocket.logger import Logger
 
 log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 log = Logger(log_file, 'SubProcessBase')
@@ -24,7 +24,9 @@ def popen_judge(popen_obj, method_name, parameters):
         log.cri(
             ' %-20s ]-[ System cmd execution err: %s, code:%s, incoming parameters: %s' % (
                 method_name, popen_obj.stderr, str(popen_obj.returncode), str(parameters)))
+        # Special treatment for cURL command. This command output download progress information on stderr.
         if 'curl' in parameters.values():
+            # However return the popen object.
             return popen_obj
         return False
     else:

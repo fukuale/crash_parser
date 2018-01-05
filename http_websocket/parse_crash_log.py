@@ -6,20 +6,22 @@ import re
 import os
 from urllib import parse, request
 
-from http_websocket.similarity_compare import SimilarityCompute
 
-try:
-    from logger import Logger
-    from init_dsym import DownloadDSYM
-    from parser_exception import ParserException
-    import subproc
-    import sqlite_base
-except ModuleNotFoundError as e:
-    from http_websocket.logger import Logger
-    from http_websocket.init_dsym import DownloadDSYM
-    from http_websocket.parser_exception import ParserException, ParseBaseInformationException
-    import http_websocket.subproc as subproc
-    import http_websocket.sqlite_base as sqlite_base
+
+# try:
+from similarity_compare import SimilarityCompute
+from logger import Logger
+from init_dsym import DownloadDSYM
+from parser_exception import ParserException, ParseBaseInformationException
+import subproc
+import sqlite_base
+# except ModuleNotFoundError as e:
+#     from http_websocket.logger import Logger
+#     from http_websocket.init_dsym import DownloadDSYM
+#     from http_websocket.parser_exception import ParserException, ParseBaseInformationException
+#     from http_websocket.similarity_compare import SimilarityCompute
+#     import http_websocket.subproc as subproc
+#     import http_websocket.sqlite_base as sqlite_base
 
 log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 log = Logger(log_file, 'ParseCrashLog')
@@ -135,8 +137,7 @@ class CrashParser:
 
     def atos_run(self, dSYM_file, tableid, crash_id, raw_data, product_name):
         """
-        Run all method to parsing crash info to get parameters to run atos.
-        Run atos command to parsing method call from symbol package.
+        Run all method to parsing crash info to get parameters to run atos parsing log.
         :param dSYM_file: dSYM file absolute folder address.
         :return: String object
         """
@@ -214,14 +215,23 @@ class CrashParser:
                                log='\n'.join(crash_list))
         return '\n'.join(crash_list)
 
-    def parsing(self, raw_data, project_list, product_name=0, task_id=0):
-        """
-        Parsing
-        :param project_list:
-        :param raw_data:
-        :param product_name:
-        :param task_id:
-        :return:
+    def parsing(self, raw_data, project_list, version_info=0, product_name=0, task_id=0):
+        """Parsing come in log data.
+        
+        Arguments:
+            raw_data {[Unknow]} -- [This is from webpage or input. No limited type on there.]
+            project_list {[List]} -- [All the list include project from JIRA.]
+        
+        Keyword Arguments:
+            version_info {[Str]} -- [Version type. 1)appstore 2)dev] (default: {0})
+            product_name {[Str]} -- [Product name of this log.] (default: {0})
+            task_id {[Str]} -- [This is the id of this log when it from web.] (default: {0})
+        
+        Raises:
+            ParseBaseInformationException -- [description]
+        
+        Returns:
+            [type] -- [description]
         """
         # Set value to _product_name when product name was detected.
         if not product_name:
@@ -240,19 +250,20 @@ class CrashParser:
                 raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
 
         # Get version info from raw data.
-        _version_info = CrashParser.get_ver_info(raw_data)
+        if not version_info:
+            version_info = CrashParser.get_ver_info(raw_data)
 
         # Download dSYM file if not exists.
-        abs_dsym = self.dSYM.init_dSYM(version_number=_version_info[0],
-                                       build_id=_version_info[1],
-                                       version_type=_version_info[-1],
+        abs_dsym = self.dSYM.init_dSYM(version_number=version_info[0],
+                                       build_id=version_info[1],
+                                       version_type=version_info[-1],
                                        product=product_name)
 
         # Get apple reason.
         _reason = CrashParser.get_apple_reason(raw_data=raw_data)
 
         # Compute similarity with old data.
-        _sc = SimilarityCompute(versioninfo=_version_info[0], crashid=task_id)
+        _sc = SimilarityCompute(versioninfo=version_info[0], crashid=task_id)
         _row_id = _sc.apple_locate_similarity(_reason)
 
         # Parse Stacktrace information.

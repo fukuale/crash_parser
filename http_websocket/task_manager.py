@@ -4,26 +4,26 @@
 import os
 
 # Cause IDE need parent folder name to import other class, shell need not.
-try:
-    from parser_exception import ParseBaseInformationException
-    from similarity_compare import SimilarityCompute
-    from get_crash_log import GetCrashInfoFromServer
-    from parse_crash_log import CrashParser
-    from init_dsym import DownloadDSYM
-    from subproc import SubProcessBase
-    from jira_handler import JIRAHandler
-    from report_export import ReportGenerator
-    from read_build_ftp import ReadVersionInfoFromFTP
-except ModuleNotFoundError:
-    from http_websocket.parser_exception import ParseBaseInformationException
-    from http_websocket.similarity_compare import SimilarityCompute
-    from http_websocket.get_crash_log import GetCrashInfoFromServer
-    from http_websocket.parse_crash_log import CrashParser
-    from http_websocket.init_dsym import DownloadDSYM
-    from http_websocket.subproc import SubProcessBase
-    from http_websocket.jira_handler import JIRAHandler
-    from http_websocket.report_export import ReportGenerator
-    from http_websocket.read_build_ftp import ReadVersionInfoFromFTP
+# try:
+from parser_exception import ParseBaseInformationException
+from similarity_compare import SimilarityCompute
+from get_crash_log import GetCrashInfoFromServer
+from parse_crash_log import CrashParser
+from init_dsym import DownloadDSYM
+from subproc import SubProcessBase
+from jira_handler import JIRAHandler
+from report_export import ReportGenerator
+from read_build_ftp import ReadVersionInfoFromFTP
+# except ModuleNotFoundError:
+#     from http_websocket.parser_exception import ParseBaseInformationException
+#     from http_websocket.similarity_compare import SimilarityCompute
+#     from http_websocket.get_crash_log import GetCrashInfoFromServer
+#     from http_websocket.parse_crash_log import CrashParser
+#     from http_websocket.init_dsym import DownloadDSYM
+#     from http_websocket.subproc import SubProcessBase
+#     from http_websocket.jira_handler import JIRAHandler
+#     from http_websocket.report_export import ReportGenerator
+#     from http_websocket.read_build_ftp import ReadVersionInfoFromFTP
 
 
 class TaskSchedule(object):
@@ -68,15 +68,18 @@ class TaskSchedule(object):
             1) _code_l: The last 3 version information of project.
         """
         for proj in self.jira.get_projects():
-            if proj:
+            if proj[0] in self.pjname.keys():
+                if 'WELIVE' == proj[0]:
+                    print('failllllll')
                 # Read last 3 versions of this project from JIRA.
                 _ver_l = self.jira.read_project_versions(project=proj[0])
                 # Splicing version information for read crash ids from server.
-                _version_s = self.build_code.read_last_svn_code(project=proj[0], jira_ver=_ver_l)
-                if _version_s:
-                    yield self.pjname[proj[0]], _version_s
-                else:
-                    raise ParseBaseInformationException('Can not detected version [Project:%s] from build server!' % proj)
+                if _ver_l:
+                    _version_s = self.build_code.read_last_svn_code(project=proj[0], jira_ver=_ver_l)
+                    if _version_s:
+                        yield self.pjname[proj[0]], _version_s
+                    else:
+                        raise ParseBaseInformationException('Can not detected version [Project:%s] from build server!' % proj)
 
     def read_log_from_server(self):
         """
@@ -120,8 +123,7 @@ class TaskSchedule(object):
         elif 'guopengzhang' == raw_data:
             try:
                 for crash_info in self.read_log_from_server():
-                    env = self.parser.get_ver_info(crash_info[-1][-1])
-                    # TODO: PROCESSING.
+                    env = self.parser.get_ver_info(crash_info[0][-1])
                     abs_dsym = self.dSYM.init_dSYM(version_number=env[0],
                                                    build_id=env[1],
                                                    version_type=env[-1],
@@ -129,8 +131,11 @@ class TaskSchedule(object):
                     if abs_dsym:
                         self.parser.parsing(raw_data=crash_info[0][-1],
                                             product_name=crash_info[-1][0],
+                                            version_info=env,
                                             task_id=crash_info[0][0],
                                             project_list=self.pjname.values())
+                # TODO: PROGRESSING
+                self.jira_handler()
             except Exception as e:
                 return e.__str__()
 
@@ -138,7 +143,7 @@ class TaskSchedule(object):
             return 'Can\'t read environment information from this log content. ' \
                    '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
 
-    def jira(self):
+    def jira_handler(self):
         rg = ReportGenerator(product_name_list=self.pjname.values())
         rg.submit_jira()
         rg.update_jira()
