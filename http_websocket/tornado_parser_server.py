@@ -63,8 +63,8 @@ class ParserHandler(WebSocketHandler):
 
     def on_message(self, message):
         if message:
-            ts = TaskSchedule()
-            data = ts.run_parser(raw_data=message.strip())
+            task_schle = TaskSchedule()
+            data = task_schle.run_parser(raw_data=message.strip())
             if data:
                 self.write_message(str(data))
         else:

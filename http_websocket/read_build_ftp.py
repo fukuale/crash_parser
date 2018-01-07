@@ -15,23 +15,36 @@ except ModuleNotFoundError:
 
 
 class ReadVersionInfoFromFTP(object):
-    def __init__(self):
+    def __init__(self, projects):
         self.domain = 'http://10.0.2.188'
-        self.wg = 'GameIM'
-        self.sc = 'GameLive'
+        self.project = projects
         self.platform = 'ios'
         self.appstore = 'AppStore正式发布'
         self.dSYM_published = 'AppStore正式发布/dsYM'
         self.dSYM_dev = 'dev/DSYM'
 
     def url_splicing(self, project):
-        if project == 'GAMEIM':
-            project = self.wg
-        elif project == 'WELIVE':
-            project = self.sc
-        return os.path.join(self.domain, project, self.platform, self.appstore)
+        """Url stitching.
+
+        Arguments:
+            project {String} -- [Project name.]
+
+        Returns:
+            [String] -- [Full url address.]
+        """
+        for proj in self.project.keys():
+            if proj == project.upper:
+                return os.path.join(self.domain, project, self.platform, self.appstore)
 
     def read_page(self, url):
+        """Read FTP page.
+        
+        Arguments:
+            url {String} -- [FTP address.]
+        
+        Returns:
+            [String] -- [Page content.]
+        """
         print('url: ' + url)
         url = parse.quote(url, safe='/:?=')
         return request.urlopen(url=url).read().decode('utf-8')

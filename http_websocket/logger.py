@@ -2,10 +2,6 @@
 # Create = '2017/09/07'
 
 import logging
-
-
-# call_name = inspect.stack()[1][3]
-# func_name = sys._getframe().f_code.co_name
 import sys
 
 # +++++++++++++++++++++++++++
@@ -18,37 +14,69 @@ import sys
 
 
 class Logger:
+    """Logger class.
+    """
     def __init__(self, path, logger, clevel=logging.INFO, Flevel=logging.DEBUG):
         self.logger = logging.getLogger(logger)
         self.logger.setLevel(logging.DEBUG)
         fmt = logging.Formatter(
             '[ %(asctime)s ]-[ %(name)-20s ]-( %(levelname)-8s ]: -> [ %(message)s ]')
         # console logger
-        sh = logging.StreamHandler()
-        sh.setFormatter(fmt)
-        sh.setLevel(clevel)
+        shell_stream = logging.StreamHandler()
+        shell_stream.setFormatter(fmt)
+        shell_stream.setLevel(clevel)
         # file logger
-        fh = logging.FileHandler(path)
-        fh.setFormatter(fmt)
-        fh.setLevel(Flevel)
-        self.logger.addHandler(sh)
-        self.logger.addHandler(fh)
+        file_stream = logging.FileHandler(path)
+        file_stream.setFormatter(fmt)
+        file_stream.setLevel(Flevel)
+        self.logger.addHandler(shell_stream)
+        self.logger.addHandler(file_stream)
 
     @staticmethod
     def get_function_name():
+        """Get the name of the calling method.
+
+        Returns:
+            [String] -- [Method name]
+        """
         return sys._getframe().f_back.f_code.co_name
 
     def debug(self, message):
+        """Log the debug level.
+
+        Arguments:
+            message {String} -- [Log content.]
+        """
         self.logger.debug(str(message))
 
     def info(self, message):
+        """Log the info level.
+
+        Arguments:
+            message {String} -- [Log content.]
+        """
         self.logger.info(str(message))
 
     def warn(self, message):
+        """Log the warning level.
+
+        Arguments:
+            message {String} -- [Log content.]
+        """
         self.logger.warning(str(message))
 
     def error(self, message):
+        """log the error level.
+
+        Arguments:
+            message {String} -- [Log content.]
+        """
         self.logger.error(str(message))
 
     def cri(self, message):
+        """log the critical level.
+
+        Arguments:
+            message {String} -- [Log content.]
+        """
         self.logger.critical(str(message))
