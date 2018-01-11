@@ -4,37 +4,27 @@
 import re
 
 import os
-from urllib import parse, request
-
-
-
-# try:
 from similarity_compare import SimilarityCompute
 from logger import Logger
 from init_dsym import DownloadDSYM
 from parser_exception import ParserException, ParseBaseInformationException
 import subproc
 import sqlite_base
-# except ModuleNotFoundError as e:
-#     from http_websocket.logger import Logger
-#     from http_websocket.init_dsym import DownloadDSYM
-#     from http_websocket.parser_exception import ParserException, ParseBaseInformationException
-#     from http_websocket.similarity_compare import SimilarityCompute
-#     import http_websocket.subproc as subproc
-#     import http_websocket.sqlite_base as sqlite_base
 
-log_file = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
-log = Logger(log_file, 'ParseCrashLog')
+LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+LOG = Logger(LOG_FILE, 'ParseCrashLog')
 
 
 class CrashParser:
+    """Parsing crash log.
+    """
     def __init__(self):
         super(CrashParser, self).__init__()
         self.report_sql = 'ReportInfo.sqlite'
         self.build_number = str()
         self.version_number = str()
         self.proc = subproc.SubProcessBase()
-        self.dSYM = DownloadDSYM()
+        self.dsym = DownloadDSYM()
 
     def detect_maxtrac(self, crash_list):
         """
@@ -43,7 +33,6 @@ class CrashParser:
             1) max_line_number
             2) _id (Which line included the max line number, eg: -1, It is the negative index of list.)
         """
-
         _id = -1
         while True:
             try:
@@ -55,10 +44,13 @@ class CrashParser:
 
     @staticmethod
     def get_ver_info(data_in):
-        """
-        Get version information from crash log content.
-        :param data_in:
-        :return:
+        """Get version info from crashes content.
+
+        Arguments:
+            data_in {Unknow} -- [Crash content.]
+
+        Raises:
+            ParserException -- [Could not detected version information in this content.]
         """
         # Complier regular expression
         _version = re.compile(r'\d+(\.\d+){0,2}')       # version code
@@ -83,14 +75,17 @@ class CrashParser:
                     return [version_code.group(0), build_number[-1], 'appstore']
                 else:
                     return [version_code.group(0), build_number[-1], 'dev']
-        raise ParserException('Could not detected version information.')
+        raise ParserException('Could not detected version information in this content.')
 
     @staticmethod
     def get_apple_reason(raw_data):
-        """
-        Get "apple reason" feedback from crash log.
-        This data is used to store data in each data table first time. [Data table split]
-        :return: String object
+        """Get apple located reason from log.
+
+        Arguments:
+            raw_data {String, Bytes} -- [The crashes content.]
+
+        Returns:
+            [String] -- [Apple located reason.]
         """
         content = list()
         if isinstance(raw_data, str):
@@ -100,9 +95,18 @@ class CrashParser:
         for reason in content:
             if reason.startswith('reason:') or reason.startswith('ERROR:'):
                 return reason
-        log.error(' %-20s ]-[ This content is not included Apple Reason data.' % (log.get_function_name()))
+        LOG.error(' %-20s ]-[ This content is not included Apple Reason data.' % (LOG.get_function_name()))
 
-    def get_crash_list(self, crash_list, pro_name):
+    def get_stacktrack_list(self, crash_list, project_name):
+        """Filter all the Stacktrack log from log content.
+
+        Arguments:
+            crash_list {List} -- [List type log.]
+            pro_name {String} -- [The name of project.]
+
+        Returns:
+            [Tuple] -- [0) Stacktrack log list. 1) CPU arch]
+        """
         """
         Get each line included product_name from Stacktrace content.
         :return: Tuple object
@@ -116,7 +120,7 @@ class CrashParser:
             _index = _id - i
             line = crash_list[_index].split()
             # Get list data by reverse order.
-            if pro_name in line:
+            if project_name in line:
                 # Get memory start adress
                 _memory_addr_start = hex(
                     int('%s' % line[2], 16) - int(line[-1]))
@@ -136,6 +140,20 @@ class CrashParser:
             return 0, 0
 
     def atos_run(self, dSYM_file, tableid, crash_id, raw_data, product_name):
+        """ATOS calling.
+
+        Arguments:
+            dSYM_file {String} -- [The dSYM file absolute folder address.]
+            tableid {} -- []
+            crash_id {[type]} -- [description]
+            raw_data {[type]} -- [description]
+            product_name {[type]} -- [description]
+
+        Raises:
+            ParseBaseInformationException -- [description]
+            ParserException -- [description]
+            ParserException -- [description]
+        """
         """
         Run all method to parsing crash info to get parameters to run atos parsing log.
         :param dSYM_file: dSYM file absolute folder address.
@@ -158,7 +176,7 @@ class CrashParser:
         _app_symbol_file = dSYM_file + '/Contents/Resources/DWARF/%s' % product_name
 
         # call get_crash_list to filter what data need to parsing.
-        stacktrace_list, cpu_arm_ = self.get_crash_list(crash_list=crash_list, pro_name=product_name)
+        stacktrace_list, cpu_arm_ = self.get_stacktrack_list(crash_list=crash_list, project_name=product_name)
 
         if not stacktrace_list:
             conn, cursor = sqlite_base.sqlite_connect()
@@ -217,21 +235,21 @@ class CrashParser:
 
     def parsing(self, raw_data, project_list, version_info=0, product_name=0, task_id=0):
         """Parsing come in log data.
-        
+
         Arguments:
-            raw_data {[Unknow]} -- [This is from webpage or input. No limited type on there.]
+            raw_data {String, Bytes} -- [This is from webpage or input. No limited type on there.]
             project_list {[List]} -- [All the list include project from JIRA.]
-        
+
         Keyword Arguments:
-            version_info {[Str]} -- [Version type. 1)appstore 2)dev] (default: {0})
-            product_name {[Str]} -- [Product name of this log.] (default: {0})
-            task_id {[Str]} -- [This is the id of this log when it from web.] (default: {0})
-        
+            version_info {String} -- [Version type. 1)appstore 2)dev] (default: {0})
+            product_name {String} -- [Product name of this log.] (default: {0})
+            task_id {String} -- [This is the id of this log when it from web.] (default: {0})
+
         Raises:
-            ParseBaseInformationException -- [description]
-        
+            ParseBaseInformationException -- [Can't detect any product name from the crash log!]
+
         Returns:
-            [type] -- [description]
+            [String] -- [The crash log after parse.]
         """
         # Set value to _product_name when product name was detected.
         if not product_name:
@@ -240,12 +258,12 @@ class CrashParser:
                 _raw_data = raw_data.decode()
             else:
                 _raw_data = raw_data
-            for names in project_list:
-                if os.path.splitext(names)[0] in _raw_data:
-                    product_name = os.path.splitext(names)[0]
-                    # if '_HOC' in _raw_data:
-                    #     product_name += '_HOC'
-                    # break
+            for _name in project_list:
+                if _name.upper() in _raw_data.upper():
+                    product_name = _name
+                    # For develop version.
+                if '_HOC' in _raw_data:
+                    product_name += '_HOC'
             if not product_name:
                 raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
 
@@ -254,10 +272,11 @@ class CrashParser:
             version_info = CrashParser.get_ver_info(raw_data)
 
         # Download dSYM file if not exists.
-        abs_dsym = self.dSYM.init_dSYM(version_number=version_info[0],
+        abs_dsym = self.dsym.init_dsym(version_number=version_info[0],
                                        build_id=version_info[1],
                                        version_type=version_info[-1],
-                                       product=product_name)
+                                       product_name=product_name,
+                                       product_list=project_list)
 
         # Get apple reason.
         _reason = CrashParser.get_apple_reason(raw_data=raw_data)

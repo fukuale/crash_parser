@@ -11,23 +11,8 @@ import tornado.web
 from tornado.options import define, options
 from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
-from multiprocessing import Queue, Process
-
-
-# try:
 from task_manager import TaskSchedule
 from logger import Logger
-from init_dsym import DownloadDSYM
-from parse_crash_log import CrashParser
-from get_crash_log import GetCrashInfoFromServer
-from similarity_compare import SimilarityCompute
-# except ModuleNotFoundError:
-#     from http_websocket.task_manager import TaskSchedule
-#     from http_websocket.logger import Logger
-#     from http_websocket.init_dsym import DownloadDSYM
-#     from http_websocket.parse_crash_log import CrashParser
-#     from http_websocket.get_crash_log import GetCrashInfoFromServer
-#     from http_websocket.similarity_compare import SimilarityCompute
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'TornadoServer')
@@ -86,11 +71,12 @@ def run():
     call
     """
     tornado.options.parse_command_line()
-    app = tornado.web.Application([
-        (r"/", IndexHandler),
-        (r"/push_crash", ParserHandler),
-        (r"/setwebconf", SetWebConf),
-    ],
+    app = tornado.web.Application(
+        [
+            (r"/", IndexHandler),
+            (r"/push_crash", ParserHandler),
+            (r"/setwebconf", SetWebConf),
+        ],
         template_path=os.path.join(os.path.dirname(__file__), "templates"),
         debug=True
     )

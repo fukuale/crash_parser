@@ -46,7 +46,7 @@ def sqlite_connect(sql_name='CrashCount.sqlite', sql_abs_path=0):
         Normally:
         [Sqlite3.Connection] -- [The sqlite conncetion.]
         False:
-        [Boole] -- [False]
+        [Boolean] -- [False]
     """
     if not sql_abs_path:
         sql_path = os.path.join(os.path.expanduser(
@@ -68,10 +68,10 @@ def create_base_table(conn, cursor, end=True):
     Arguments:
         conn {Sqlite3.Connection} -- [The sqlite connection.]
         cursor {Sqlite3.Cusor} -- [The sqlite cursor.]
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
 
     Keyword Arguments:
-        end {Boole} -- [The signal to close or not] (default: {True})
+        end {Boolean} -- [The signal to close or not] (default: {True})
     """
     cursor.execute('''CREATE TABLE statistics
         (FREQUENCY INT NOT NULL,
@@ -94,7 +94,7 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
         **kwargs {String} -- [Table id.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
     """
     cursor.execute('CREATE TABLE backtrack_%s( \
             CRASH_ID MESSAGE_TEXT, \
@@ -116,7 +116,7 @@ def create_report_table(conn, cursor, end=True):
         cursor {Sqlite3.Cusor} -- [The sqlite cursor.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
     """
     cursor.execute(
         'CREATE TABLE report(CRASH_ID MESSAGE_TEXT, LOG MESSAGE_TEXT);')
@@ -133,7 +133,7 @@ def create_reasons_table(conn, cursor, end=True):
         cursor {Sqlite3.Cusor} -- [The sqlite cursor.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
     """
     cursor.execute('''CREATE TABLE reasons(
         FIXED INT DEFAULT 0,
@@ -155,7 +155,7 @@ def create_unmatch_table(conn, cursor, end=True):
         cursor {Sqlite3.Cusor} -- [The sqlite cursor.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
     """
     cursor.execute('''CREATE TABLE unmatch(
         CRASH_ID MESSAGE_TEXT,
@@ -174,11 +174,11 @@ def create_tables(conn, cursor, tablename, end=True, create=True):
         tablename {String} -- [What name want to create.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
-        create {Boole} -- [Create the table when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        create {Boolean} -- [Create the table when this value set to True.] (default: {True})
 
     Returns:
-        [Boole] -- [If create successfully this will be True.]
+        [Boolean] -- [If create successfully this will be True.]
     """
     exist = "SELECT COUNT(*) FROM sqlite_master where type='table' and name='%s'" % tablename
     if cursor.execute(exist).fetchall()[0][0] == 1:
@@ -213,7 +213,7 @@ def insert(conn, cursor, end=True, **kwargs):
         **kwargs {String} -- [What value want to insert.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
 
     Returns:
         [Integer] -- [The line id just was inserted.]
@@ -265,7 +265,7 @@ def update(conn, cursor, end=True, **kwargs):
         **kwargs {String} -- [What value want to insert.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
 
     Returns:
         [Integer] -- [The line id just was updated.]
@@ -313,14 +313,14 @@ def search(conn, cursor, end=True, only=False, **kwargs):
         **kwargs {String} -- [The search condition.]
 
     Keyword Arguments:
-        end {Boole} -- [Close the sqlite connection when this value set to True.] (default: {True})
-        only {Boole} -- [Search result the distinct data from sqlite when this value set to Ture.] (default: {False})
+        end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
+        only {Boolean} -- [Search result the distinct data from sqlite when this value set to Ture.] (default: {False})
 
     Returns:
         Normally:
         [List] -- [The result of searching.]
         False:
-        [Boole] -- [When the sqlite3.OpeartioncalError was throw out.]
+        [Boolean] -- [When the sqlite3.OpeartioncalError was throw out.]
     """
     try:
         distinct = str()

@@ -13,7 +13,6 @@ import os
 # try:
 from logger import Logger
 from subproc import SubProcessBase
-from parse_crash_log import CrashParser
 from parser_exception import ReadFromServerException
 # except ModuleNotFoundError as e:
 #     from http_websocket.logger import Logger
@@ -24,7 +23,7 @@ from parser_exception import ReadFromServerException
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'GetCrashLog')
 
-YESTERDAY = str(datetime.date.today() - datetime.timedelta(1))
+YESTERDAY = str(datetime.date.today() - datetime.timedelta(2))
 
 
 class GetCrashInfoFromServer(object):
@@ -61,7 +60,7 @@ class GetCrashInfoFromServer(object):
         """Get crash_id from web API
 
         Arguments:
-            version {List} -- [The version from JIRA]
+            version {String} -- [The version from JIRA]
             date {String} -- [Date timestamp.]
 
         Returns:
@@ -95,12 +94,16 @@ class GetCrashInfoFromServer(object):
             if times != 0:
                 time.sleep(2)
                 self.get_task_list(version, date)
+        # TODO: Add Exception to comleting this logic.
 
     def get_crash_log(self, task_id):
-        """
-        Get crash log from server.
-        :param task_id: one id for API.
-        :return: String object.
+        """Get crash log from server.
+
+        Arguments:
+            task_id {String} -- [The crash id.]
+
+        Returns:
+            [Strint] -- [Crash contetn.]
         """
         LOG.debug(' %-20s ]-[ Get crash log with ID: %s' % (LOG.get_function_name(), task_id))
         param = {'row': task_id}
@@ -116,18 +119,27 @@ class GetCrashInfoFromServer(object):
         LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), task_id))
         return crash_content
 
-    def gen_task_log(self, version, date=YESTERDAY):
-        """
-        Get aim crash_id's content from web API.
-        :param version: Version information from task_manager.
-        :param date: Which crash of day want to get. Default is yesterday.
-        :return:
+    def get_task_log(self, version, date=YESTERDAY):
+        """Get the log content from web API within specific id.
+        
+        Arguments:
+            version {[type]} -- [description]
+        
+        Keyword Arguments:
+            date {[type]} -- [description] (default: {YESTERDAY})
+        
+        Raises:
+            ReadFromServerException -- [description]
+            TypeError -- [description]
+        
+        Yields:
+            [type] -- [description]
         """
         if isinstance(version, str):
             # Get crashes
             task_ids = self.get_task_list(version=version, date=date)
             if not task_ids:
-                raise ReadFromServerException('No crash can be read of the last 3 versions.')
+                raise ReadFromServerException('No content has read.')
             else:
                 for task_id in task_ids:
                     _crash_log = self.get_crash_log(task_id)

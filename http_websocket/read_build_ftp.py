@@ -1,90 +1,107 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/12/04'
+import os
+import re
 
 from urllib import request
 from urllib import parse
 
-import os
+from parser_exception import ReadFromServerException
 
-import re
 
-try:
-    pass
-except ModuleNotFoundError:
-    pass
 
 
 class ReadVersionInfoFromFTP(object):
-    def __init__(self, projects):
+    """Read version information from FTP server.
+    """
+    def __init__(self):
         self.domain = 'http://10.0.2.188'
-        self.project = projects
         self.platform = 'ios'
         self.appstore = 'AppStore正式发布'
-        self.dSYM_published = 'AppStore正式发布/dsYM'
-        self.dSYM_dev = 'dev/DSYM'
+        self.dsym_published = 'AppStore正式发布/dsYM'
+        self.dsym_dev = 'dev/DSYM'
 
-    def url_splicing(self, project):
+    def url_stitching(self, project_name):
         """Url stitching.
 
         Arguments:
-            project {String} -- [Project name.]
+            project_name {List} -- [Project name.]
 
         Returns:
             [String] -- [Full url address.]
         """
-        for proj in self.project.keys():
-            if proj == project.upper:
-                return os.path.join(self.domain, project, self.platform, self.appstore)
+        return os.path.join(self.domain, project_name, self.platform, self.appstore)
 
     def read_page(self, url):
         """Read FTP page.
-        
+
         Arguments:
             url {String} -- [FTP address.]
-        
+
         Returns:
             [String] -- [Page content.]
         """
-        print('url: ' + url)
+        if 'WELIVE' in url and url.startswith('http://10.0.2.188'):
+            url = url.replace('WELIVE', 'GAMELIVE')
         url = parse.quote(url, safe='/:?=')
-        return request.urlopen(url=url).read().decode('utf-8')
+        try:
+            return request.urlopen(url=url).read().decode('utf-8')
+        except request.HTTPError as http_err:
+            raise ReadFromServerException('%s(%s)' % (http_err, url))
 
-    def read_last_svn_code(self, project, jira_ver):
+    def stitching_last_version(self, project_name, jira_ver):
+        """Get the version code of last build.
+
+        Arguments:
+            project_name {String} -- [The name of project.]
+            jira_ver {List} -- [The versions of this project.]
         """
-        Return the last one build which was building for publish.
-        :param project: This project name.
-        :param jira_ver: Incoming max 3 versions.
-        :return: String object. This is the newest build of published.
-        """
-        _pg_res = self.read_page(self.url_splicing(project=project)).split()
+        _pg_res = self.read_page(self.url_stitching(project_name=project_name)).split()
         _build = re.compile(r'[r]\d+')
         # reversed version list. Promote efficiency
         for ver in reversed(jira_ver):
             for index in range(1, _pg_res.__len__()):
                 # Matching in reversed
                 _res = _pg_res[index - 2 * index].find(ver)
-                # Dismatch is -1.
                 if _res > 0:
                     _b_code = _build.search(_pg_res[index - 2 * index])
                     return 'V%s (%s) [正式版]' % (ver, _b_code.group(0).replace('r', ''))
 
-    def splicing_dsym_addr(self, project_name, type):
+    def dsym_addr_stithing(self, project_name, v_type, pj_list):
+        """[summary]
+
+        Arguments:
+            project_name {[type]} -- [description]
+            type {[type]} -- [description]
+
+        Returns:
+            [type] -- [description]
+        """
         _proj = str()
         _chl = str()
-        if project_name == 'GAMEIM' or project_name == 'WeGamers':
-            _proj = self.wg
-        elif project_name == 'WELIVE' or project_name == 'StreamCraft':
-            _proj = self.sc
+        for pj_key in pj_list.keys():
+            if project_name == pj_list[pj_key]:
+                _proj = pj_key
 
-        if type == 'appstore':
-            _chl = self.dSYM_published
-        elif type == 'dev':
-            _chl = self.dSYM_dev
+        if v_type == 'appstore':
+            _chl = self.dsym_published
+        elif v_type == 'dev':
+            _chl = self.dsym_dev
 
         return os.path.join(self.domain, _proj, self.platform, _chl)
 
-    def read_dsym_dlink(self, project, type, build_num):
-        _pg_res = self.read_page(self.splicing_dsym_addr(project_name=project, type=type))
+    def read_dsym_dlink(self, product_name, v_type, build_num, product_list):
+        """[summary]
+
+        Arguments:
+            project {[type]} -- [description]
+            type {[type]} -- [description]
+            build_num {[type]} -- [description]
+
+        Returns:
+            [type] -- [description]
+        """
+        _pg_res = self.read_page(self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_list=product_list))
         _pg_res = _pg_res.split('<td>')
         _file = re.compile('\".*?\"')
         for index in range(1, _pg_res.__len__()):
@@ -93,6 +110,6 @@ class ReadVersionInfoFromFTP(object):
                 _line = _pg_res[index - 2 * index]
                 _f_name = _file.search(_line)
                 return os.path.join(
-                    self.splicing_dsym_addr(project_name=project, type=type),
-                    _f_name.group(0).replace('"', '').replace('(', '\(').replace(')', '\)')
+                    self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_list=product_list),
+                    _f_name.group(0).replace('"', '').replace('(', r'\(').replace(')', r'\)')
                 )
