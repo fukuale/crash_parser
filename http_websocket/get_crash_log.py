@@ -23,7 +23,7 @@ from parser_exception import ReadFromServerException
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'GetCrashLog')
 
-YESTERDAY = str(datetime.date.today() - datetime.timedelta(2))
+YESTERDAY = str(datetime.date.today() - datetime.timedelta(1))
 
 
 class GetCrashInfoFromServer(object):
