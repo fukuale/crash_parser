@@ -95,7 +95,7 @@ class SimilarityCompute(object):
 
         # Use the specific keyword to get as little data as possible from sqlite.
         alpha_str = self.mutable_remove(datain)
-        for chars in enumerate(alpha_str):
+        for chars in alpha_str:
             # 6, Lenght of the keyword. Reduce the probability of duplication.
             if chars.__len__() > 6:
                 _first_match = sqlite_base.search(conn, cursor,

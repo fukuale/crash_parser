@@ -7,7 +7,7 @@ from urllib import request
 import datetime
 import time
 import queue
-
+import sys
 import os
 
 # try:
@@ -32,18 +32,30 @@ class GetCrashInfoFromServer(object):
     """
     def __init__(self):
         super(GetCrashInfoFromServer, self).__init__()
+        # Define for WeGamers
         self.sec_key = '8HTm)NZ[K=I0Ju!L%a@Ua!#g29ZPFgm9'
-        self.domain = 'http://gdata.linkmessenger.com'
-        self.api = 'index.php/Admin/Api'
-        self.method_get = 'getAppError'
-        self.method_read = 'appErrorInfo'
-        self.get_ids_url = '/'.join([self.domain, self.api, self.method_get])
-        self.read_ids_url = '/'.join([self.domain, self.api, self.method_read])
+        self.wegamers_domain = 'http://gdata.linkmessenger.com'
+        self.wegamers_api_dir = 'index.php/Admin/Api'
+        self.wegamers_api_get_crash = 'appErrorInfo'
+        self.api_get_ids = 'getAppError'
+        self.wg_get_ids_url = '/'.join([self.wegamers_domain, self.wegamers_api_dir, self.api_get_ids])
+        self.wg_get_log_url = '/'.join([self.wegamers_domain, self.wegamers_api_dir, self.wegamers_api_get_crash])
+        
+        # Define for ScreamCraft
+        # self.sc_domain = 'http://crec.streamcraft.com:95'
+        self.sc_domain = 'http://10.0.21.75:8181'
+        self.sc_api_dir = 'noauth/apperror'
+        self.sc_api_get_ids = 'getAppErrorIds'
+        self.sc_api_get_log = 'getAppErrorByIds'
+        self.sc_get_ids_url = '/'.join([self.sc_domain, self.sc_api_dir, self.sc_api_get_ids])
+        self.sc_get_log_url = '/'.join([self.sc_domain, self.sc_api_dir, self.sc_api_get_log])
+
+        # Common define.
         self.que = queue.Queue()
         self.md5 = hashlib.md5()
         self.sproc = SubProcessBase()
 
-    def get_md5(self, date):
+    def get_md5(self, data):
         """Compute sign key to access crash log API
 
         Arguments:
@@ -53,10 +65,10 @@ class GetCrashInfoFromServer(object):
             [String] -- [The MD5 of date.]
         """
         md5 = hashlib.md5()
-        md5.update((self.sec_key + str(date)).encode())
+        md5.update((self.sec_key + str(data)).encode())
         return md5.hexdigest().lower()
 
-    def get_task_list(self, version, date):
+    def get_task_list(self, version, date, times=4, before=0):
         """Get crash_id from web API
 
         Arguments:
@@ -66,37 +78,77 @@ class GetCrashInfoFromServer(object):
         Returns:
             [List] -- [The crash ids list.]
         """
-        # Define retry times.
-        times = 4
-        params = {
-            'day': date,
-            'ver': version,
-            'sign': self.get_md5(date)
-        }
+        # Define request for urlopen.
+        _req = request.Request
 
-        url_params = parse.urlencode(params).encode('utf-8')
+        # Set the parameters for each project.
 
-        list_params = request.Request(
-            url=self.get_ids_url,
-            data=url_params
-        )
+        # Set request parameters to body(normally) and request via method POST.
+        if version[0] == 'WeGamers':
+            # Body form set.
+            params = {
+                'day': date,
+                'ver': version[-1],
+                'sign': self.get_md5(date)
+            }
+            # parameters include the chinese characters. Need to encode with UTF-8.
+            url_params = parse.urlencode(params).encode('utf-8')
+
+            _req = request.Request(url=self.wg_get_ids_url, data=url_params, method='POST')
+
+        # Set request parameters to headers and request via method GET.
+        elif version[0] == 'StreamCraft':
+            # Change the date format to %Y%m%d from %Y-%m-%d
+            _strpdate = datetime.datetime.strftime(
+                datetime.datetime.strptime(date, '%Y-%m-%d'),
+                '%Y%m%d'
+            )
+            # Headers set.
+            header = {
+                'date': _strpdate,
+                'sign': self.get_md5(_strpdate)
+            }
+
+            _req = request.Request(url=self.sc_get_ids_url, headers=header, method='GET')
+        else:
+            raise ReadFromServerException("Projectname match no options. Can not read crash ids list.")
         try:
-            task_list = request.urlopen(list_params).read()
-            LOG.info(' %-20s ]-[ Crash id list from server: \n%s' % (LOG.get_function_name(), str(task_list)))
+            # TODO: Http status 200 judge logic. to ensure the server still works.
+            task_list = request.urlopen(_req).read()
             # Validation data validity.
-            if len(task_list) > 10:
-                # Source data transition to list type.
-                return eval(task_list)
-        # Retry for HTTP 404 temporary
+
+            # validation the first character is symbol "[". If it's, that could eval to list. if not, that result is useless.
+            if task_list[0] == 91:
+                _task_list = eval(task_list)
+                # remove the id is not startswith 'if'. if=iOS Crash.
+                _temp_list = list()
+                for x in _task_list:
+                    if not x.startswith('i'):
+                        _temp_list.append(x)
+                _task_list = list(set(_task_list).difference(_temp_list))
+                # If len == 0. Try to get the the day before.
+                if _task_list.__len__() != 0:
+                    return _task_list
+                elif _task_list.__len__() == 0 and not before:
+                    before += 1
+                    LOG.info(' %-20s ]-[ Crash id list from server: \n%s' % (LOG.get_function_name(), [_req.full_url, _req.data, _req.headers]))
+                    new_date = str((datetime.datetime.strptime(date, '%Y-%m-%d') - datetime.timedelta(1)).date())
+                    return self.get_task_list(version=version, date=new_date, before=before)
+                elif _task_list.__len__() == 0 and before:
+                    LOG.info(' %-20s ]-[ Crash id list from server: \n%s' % (LOG.get_function_name(), str(task_list)))
+                    raise ReadFromServerException('Could not read crash list from server for the latest 2 days')
+            raise ReadFromServerException('The data isn\'t the expeted type.')
+        # Retry for HTTP 404 temporary and another exception.
         except request.HTTPError as httperror:
             times -= 1
             LOG.error(' %-20s ]-[ Get crash ids from server error. info: %s' % (LOG.get_function_name(), httperror.info()))
             if times != 0:
                 time.sleep(2)
-                self.get_task_list(version, date)
-        # TODO: Add Exception to comleting this logic.
+                self.get_task_list(version=version, date=new_date, times=times)
+        except ReadFromServerException as read_err:
+            raise ReadFromServerException(read_err.__str__())
 
-    def get_crash_log(self, task_id):
+    def get_crash_log(self, task_id, projectname):
         """Get crash log from server.
 
         Arguments:
@@ -106,16 +158,28 @@ class GetCrashInfoFromServer(object):
             [Strint] -- [Crash contetn.]
         """
         LOG.debug(' %-20s ]-[ Get crash log with ID: %s' % (LOG.get_function_name(), task_id))
-        param = {'row': task_id}
 
-        parm_encode = parse.urlencode(param).encode('utf-8')
+        _req = request.Request
 
-        crash_page = request.Request(
-            url=self.read_ids_url,
-            data=parm_encode
-        )
+        if projectname == 'WeGamers':
+            param = {
+                'row': task_id
+            }
 
-        crash_content = request.urlopen(crash_page).read()
+            parm_encode = parse.urlencode(param).encode('utf-8')
+
+            _req = request.Request(url=self.wg_get_log_url, data=parm_encode, method='POST')
+        elif projectname == 'StreamCraft':
+            header = {
+                'ids': task_id,
+                'sign': self.get_md5(task_id)
+            }
+
+            _req = request.Request(url=self.sc_get_log_url, headers=header, method='GET')
+        else:
+            raise ReadFromServerException("Projectname match no options. Can not get crash infomation.")
+        # TODO: Http status 200 judge logic. to ensure the server still works.
+        crash_content = request.urlopen(_req).read()
         LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), task_id))
         return crash_content
 
@@ -135,14 +199,14 @@ class GetCrashInfoFromServer(object):
         Yields:
             [type] -- [description]
         """
-        if isinstance(version, str):
+        if isinstance(version, tuple):
             # Get crashes
             task_ids = self.get_task_list(version=version, date=date)
             if not task_ids:
                 raise ReadFromServerException('No content has read.')
             else:
                 for task_id in task_ids:
-                    _crash_log = self.get_crash_log(task_id)
+                    _crash_log = self.get_crash_log(task_id, version[0])
                     yield task_id, _crash_log
         else:
-            raise TypeError('The type error of variable "version". Expected %s. But %s ' % (type(str()), type(version)))
+            raise TypeError('The type error of variable "version". Expected %s. But %s ' % (type(tuple()), type(version)))

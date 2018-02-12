@@ -20,7 +20,7 @@ class Logger:
         self.logger = logging.getLogger(logger)
         self.logger.setLevel(logging.DEBUG)
         fmt = logging.Formatter(
-            '[ %(asctime)s ]-[ %(name)-20s ]-( %(levelname)-8s ]: -> [ %(message)s ]')
+            '[ %(asctime)s ]-[ %(name)-20s ]-[ %(levelname)-8s ]: -> [ %(message)s ]')
         # console logger
         shell_stream = logging.StreamHandler()
         shell_stream.setFormatter(fmt)

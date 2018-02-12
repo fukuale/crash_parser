@@ -445,7 +445,7 @@ class ReportGenerator(SimilarityCompute):
             cursor.close()
             conn.close()
         else:
-            LOG.info(' %-20s ]-[ Look like all crash has been logged.: %s' %
+            LOG.info(' %-20s ]-[ Look like all crash has been logged: %s' %
                      (LOG.get_function_name(), ReportGenerator.get_yesterday_timestamp()))
 
     @staticmethod

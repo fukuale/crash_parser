@@ -8,6 +8,8 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 
+import zmq
+
 from tornado.options import define, options
 from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
@@ -37,6 +39,7 @@ class ParserHandler(WebSocketHandler):
     """
     Parse http request
     """
+
     def open(self):
         self.write_message('WebSocket has been connected !')
 
@@ -47,11 +50,38 @@ class ParserHandler(WebSocketHandler):
         pass
 
     def on_message(self, message):
-        if message:
-            task_schle = TaskSchedule()
-            data = task_schle.run_parser(raw_data=message.strip())
-            if data:
-                self.write_message(str(data))
+        # Start ZMQ socket client.
+        context = zmq.Context.instance()
+        socket = context.socket(zmq.REQ)
+        socket.bind("tcp://*:7725")
+        # Object validation.
+        if len(message) > 0:
+            # Transfer object type to string to send.
+            if isinstance(message, bytes):
+                message = message.decode()
+            elif isinstance(message, int):
+                message = str(message)
+            elif isinstance(message, str):
+                pass
+            else:
+                self.write_message('Unknow data. type %s ' % type(message))        
+            socket.send_string(message)
+            # Receive handle result.
+            result = socket.recv()
+            print(result)
+            if isinstance(result, bytes):
+                result = result.decode()
+            if result == "Finish":
+                self.write_message("Parse finished.")
+            else:
+                self.write_message(str(result))
+
+
+
+            # task_schle = TaskSchedule()
+            # data = task_schle.run_parser(raw_data=message.strip())
+            # if result:
+            #     self.write_message(str(result))
         else:
             self.write_message('No content was submit.')
 
@@ -83,6 +113,10 @@ def run():
     http_server = tornado.httpserver.HTTPServer(app)
     http_server.listen(options.port)
     tornado.ioloop.IOLoop.current().start()
+
+    # context = zmq.Context.instance()
+    # socket = context.socket(zmq.REP)
+    # socket.bind("tcp://*:7725")
 
 
 if __name__ == '__main__':

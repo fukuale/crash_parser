@@ -3,6 +3,10 @@
 
 import os
 
+import zmq
+
+from multiprocessing import Manager, Queue, Pool
+
 from parser_exception import ParseBaseInformationException, ReadFromServerException
 from parser_exception import BreakProcessing
 from get_crash_log import GetCrashInfoFromServer
@@ -20,8 +24,10 @@ class TaskSchedule(object):
         super(TaskSchedule, self).__init__()
 
         # Truth project name
-        self.pjname = {'GAMEIM': 'WeGamers',
-                       'WELIVE': 'StreamCraft'}
+        self.pjname = {
+            # 'GAMEIM': 'WeGamers',
+            'WELIVE': 'StreamCraft'
+            }
 
         # Get configuration file, product name.
         self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'conf')
@@ -87,7 +93,8 @@ class TaskSchedule(object):
             # Read log with version information.
             count += 1
             try:
-                _c_log = self.get_log.get_task_log(version=version[-1])
+                # TODO: StreamCraft integration 
+                _c_log = self.get_log.get_task_log(version=version)
                 for _log in _c_log:
                     if version[0] in _log[-1].decode():
                         yield _log, version
@@ -98,7 +105,7 @@ class TaskSchedule(object):
 
 
     # TODO: MULTIPLE PROCESS SUPPORT !
-    def run_parser(self, raw_data=None, queue_in=None):
+    def run_parser(self, raw_data=None):
         """Parser logic.
 
         Keyword Arguments:
@@ -111,7 +118,6 @@ class TaskSchedule(object):
         # Url or crash id in.
         if raw_data != 'guopengzhang':
             #Url in.
-            task_id = str()
             if raw_data.startswith('http')  :
                 if raw_data.find('row=') >= 0:
                     task_id = raw_data.split('=')[-1]
@@ -120,17 +126,20 @@ class TaskSchedule(object):
             # Crash id in.
             elif raw_data.startswith('if'):
                 task_id = raw_data
+                crash_content = self.get_log.get_crash_log(task_id=task_id)
+                if len(crash_content) > 100:
+                    return self.parser.parsing(raw_data=crash_content,
+                                            project_list=self.pjname.values())
+                else:
+                    return "Can\'t read any content from the link. \nCheck it manully !"
+            # Crash log in.
+            elif raw_data.find("deviceType") and raw_data.find("0x00") and raw_data.find("version"):
+                return self.parser.parsing(raw_data=raw_data,
+                                            project_list=self.pjname.values())
             else:
                 return 'Can\'t read environment information from this log content. ' \
                     '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
-
-            crash_content = self.get_log.get_crash_log(task_id=task_id)
             # Exculd empty page
-            if len(crash_content) > 100:
-                return self.parser.parsing(raw_data=crash_content,
-                                           project_list=self.pjname.values())
-            else:
-                return "Can\'t read any content from the link. \nCheck it manully !"
         # Crash content in.
         elif 'version' in raw_data:
             return self.parser.parsing(raw_data=raw_data,
@@ -171,3 +180,29 @@ class TaskSchedule(object):
         _report_gen = ReportGenerator(product_name_list=self.pjname.values())
         _report_gen.submit_jira()
         _report_gen.update_jira()
+
+    def start(self):
+        """[summary]
+        """
+        # Start ZMQ socket server
+        context = zmq.Context.instance()
+        socket = context.socket(zmq.REP)
+        socket.connect("tcp://127.0.0.1:7725")
+        # Listen to receive.
+        task_content = socket.recv()
+        # Bytes to String.
+        if hasattr(task_content, "decode"):
+            task_content = task_content.strip().decode()
+        try:
+            result = self.run_parser(task_content)
+            if result:
+                socket.send_string(str(result))
+            else:
+                socket.send_string("Finish")
+        except Exception as parser_err:
+            socket.send_string(parser_err.__str__())        
+
+if __name__ == '__main__':
+    ts = TaskSchedule()
+    while 1:
+        ts.start()
