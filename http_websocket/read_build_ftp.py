@@ -2,13 +2,9 @@
 # Create = '2017/12/04'
 import os
 import re
-
-from urllib import request
-from urllib import parse
+from urllib import parse, request
 
 from parser_exception import ReadFromServerException
-
-
 
 
 class ReadVersionInfoFromFTP(object):

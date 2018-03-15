@@ -2,8 +2,7 @@
 # Create = '2017/10/19'
 import re
 
-from jira import JIRA
-from jira import JIRAError
+from jira import JIRA, JIRAError
 
 
 class JIRAHandler(object):

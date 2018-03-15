@@ -1,15 +1,15 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/09/20'
 
+import os
 import re
 
-import os
-from similarity_compare import SimilarityCompute
-from logger import Logger
-from init_dsym import DownloadDSYM
-from parser_exception import ParserException, ParseBaseInformationException
-import subproc
 import sqlite_base
+import subproc
+from init_dsym import DownloadDSYM
+from logger import Logger
+from parser_exception import ParseBaseInformationException, ParserException
+from similarity_compare import SimilarityCompute
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'ParseCrashLog')

@@ -2,20 +2,19 @@
 # Create = '2017/09/20'
 
 import os
+from multiprocessing import Manager, Pool, Queue
 
 import zmq
 
-from multiprocessing import Manager, Queue, Pool
-
-from parser_exception import ParseBaseInformationException, ReadFromServerException
-from parser_exception import BreakProcessing
 from get_crash_log import GetCrashInfoFromServer
-from parse_crash_log import CrashParser
 from init_dsym import DownloadDSYM
 from jira_handler import JIRAHandler
-from report_export import ReportGenerator
-from read_build_ftp import ReadVersionInfoFromFTP
 from logger import Logger
+from parse_crash_log import CrashParser
+from parser_exception import (BreakProcessing, ParseBaseInformationException,
+                              ReadFromServerException)
+from read_build_ftp import ReadVersionInfoFromFTP
+from report_export import ReportGenerator
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'TaskManager')
@@ -134,6 +133,7 @@ class TaskSchedule(object):
             # Crash id in.
             elif raw_data.startswith('if'):
                 task_id = raw_data
+                #FIXME: ERROR.
                 crash_content = self.get_log.get_crash_log(task_id=task_id)
                 if len(crash_content) > 100:
                     return self.parser.parsing(raw_data=crash_content,

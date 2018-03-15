@@ -4,17 +4,17 @@
 import collections
 import datetime
 import os
-
 import time
 
 import jira
-import sqlite_base
+
 import regular_common
-from logger import Logger
-from similarity_compare import SimilarityCompute
+import sqlite_base
 from jira_handler import JIRAHandler
+from logger import Logger
 from parse_crash_log import CrashParser
 from parser_exception import BreakProcessing
+from similarity_compare import SimilarityCompute
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'ReportExport')
