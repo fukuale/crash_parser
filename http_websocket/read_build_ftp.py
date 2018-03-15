@@ -62,9 +62,9 @@ class ReadVersionInfoFromFTP(object):
         for ver in reversed(jira_ver):
             for index in range(1, _pg_res.__len__()):
                 # Matching in reversed
-                _res = _pg_res[index - 2 * index].find(ver)
+                _res = _pg_res[0 - index].find(ver)
                 if _res > 0:
-                    _b_code = _build.search(_pg_res[index - 2 * index])
+                    _b_code = _build.search(_pg_res[0 - index])
                     return 'V%s (%s) [正式版]' % (ver, _b_code.group(0).replace('r', ''))
 
     def dsym_addr_stithing(self, project_name, v_type, pj_list):
@@ -82,6 +82,8 @@ class ReadVersionInfoFromFTP(object):
         for pj_key in pj_list.keys():
             if project_name == pj_list[pj_key]:
                 _proj = pj_key
+            elif project_name == 'GameLive':
+                _proj = project_name
 
         if v_type == 'appstore':
             _chl = self.dsym_published
@@ -105,9 +107,9 @@ class ReadVersionInfoFromFTP(object):
         _pg_res = _pg_res.split('<td>')
         _file = re.compile('\".*?\"')
         for index in range(1, _pg_res.__len__()):
-            _res = _pg_res[index - 2 * index].find(build_num)
+            _res = _pg_res[0 - index].find(build_num)
             if _res > 0:
-                _line = _pg_res[index - 2 * index]
+                _line = _pg_res[0 - index]
                 _f_name = _file.search(_line)
                 return os.path.join(
                     self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_list=product_list),

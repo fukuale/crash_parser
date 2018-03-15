@@ -10,7 +10,7 @@ class JIRAHandler(object):
     """JIRA handler"""
     def __init__(self):
         super(JIRAHandler, self).__init__()
-        self.jira_addr = 'http://192.168.1.121:8080'
+        self.jira_addr = 'http://192.168.1.125:8080'
         self.acc = 'CrashParser'
         self.acc_pwd = 'qwer1234'
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))
@@ -67,7 +67,7 @@ class JIRAHandler(object):
         """
         return {'id': '10400'}
 
-    def project_welive(self):
+    def project_gamelive(self):
         """StreamCraft id.
         """
         return {'id': '10500'}

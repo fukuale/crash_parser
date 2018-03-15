@@ -1,24 +1,18 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/09/24'
 
-import hashlib
-from urllib import parse
-from urllib import request
+import base64
 import datetime
-import time
+import hashlib
+import os
 import queue
 import sys
-import os
+import time
+from urllib import parse, request
 
-# try:
 from logger import Logger
-from subproc import SubProcessBase
 from parser_exception import ReadFromServerException
-# except ModuleNotFoundError as e:
-#     from http_websocket.logger import Logger
-#     from http_websocket.subproc import SubProcessBase
-#     from http_websocket.parse_crash_log import CrashParser
-#     from http_websocket.parser_exception import ReadFromServerException
+from subproc import SubProcessBase
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'GetCrashLog')
@@ -42,8 +36,7 @@ class GetCrashInfoFromServer(object):
         self.wg_get_log_url = '/'.join([self.wegamers_domain, self.wegamers_api_dir, self.wegamers_api_get_crash])
         
         # Define for ScreamCraft
-        # self.sc_domain = 'http://crec.streamcraft.com:95'
-        self.sc_domain = 'http://10.0.21.75:8181'
+        self.sc_domain = 'http://crec.streamcraft.com:95'
         self.sc_api_dir = 'noauth/apperror'
         self.sc_api_get_ids = 'getAppErrorIds'
         self.sc_api_get_log = 'getAppErrorByIds'
@@ -91,13 +84,14 @@ class GetCrashInfoFromServer(object):
                 'ver': version[-1],
                 'sign': self.get_md5(date)
             }
+            print('WeGamers', date)
             # parameters include the chinese characters. Need to encode with UTF-8.
             url_params = parse.urlencode(params).encode('utf-8')
 
             _req = request.Request(url=self.wg_get_ids_url, data=url_params, method='POST')
 
         # Set request parameters to headers and request via method GET.
-        elif version[0] == 'StreamCraft':
+        elif version[0] == 'GameLive':
             # Change the date format to %Y%m%d from %Y-%m-%d
             _strpdate = datetime.datetime.strftime(
                 datetime.datetime.strptime(date, '%Y-%m-%d'),
@@ -113,6 +107,7 @@ class GetCrashInfoFromServer(object):
         else:
             raise ReadFromServerException("Projectname match no options. Can not read crash ids list.")
         try:
+            # FIXME: DEBUG MEMORY ERROR. 
             # TODO: Http status 200 judge logic. to ensure the server still works.
             task_list = request.urlopen(_req).read()
             # Validation data validity.
@@ -169,7 +164,7 @@ class GetCrashInfoFromServer(object):
             parm_encode = parse.urlencode(param).encode('utf-8')
 
             _req = request.Request(url=self.wg_get_log_url, data=parm_encode, method='POST')
-        elif projectname == 'StreamCraft':
+        elif projectname == 'GameLive':
             header = {
                 'ids': task_id,
                 'sign': self.get_md5(task_id)

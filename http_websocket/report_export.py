@@ -14,6 +14,7 @@ from logger import Logger
 from similarity_compare import SimilarityCompute
 from jira_handler import JIRAHandler
 from parse_crash_log import CrashParser
+from parser_exception import BreakProcessing
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'ReportExport')
@@ -310,6 +311,10 @@ class ReportGenerator(SimilarityCompute):
                                                table_name='reasons',
                                                columns='ROWID, FIXED, JIRAID, FREQUENCY',
                                                condition='WHERE JIRAID NOT NULL')
+                                        
+        if not isinstance(_reasons_sql_data, collections.Iterable):
+            raise BreakProcessing('No new issue(s) need to submit.')
+
         for _reasons in _reasons_sql_data:
             # Define data type.
             _version_new = list()
@@ -342,6 +347,9 @@ class ReportGenerator(SimilarityCompute):
             # Get Frequency from JIRA issue.
             _frequency_string = _exists_summary[_exists_summary.find('[Frequency'):]
             # Get Frequency integer data. Reasons might be have integer too.
+            if _frequency_string == -1:
+                LOG.cri(' %-20s ]-[ Issue %s did not have the keyword(frequency).' % (LOG.get_function_name(), _reasons[2]))
+                pass
             _frequency_int = int(regular_common.interge(_frequency_string))
 
             if _reasons[-1] == _frequency_int:

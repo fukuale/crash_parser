@@ -120,16 +120,17 @@ class CrashParser:
             _index = _id - i
             line = crash_list[_index].split()
             # Get list data by reverse order.
-            if project_name in line:
-                # Get memory start adress
-                _memory_addr_start = hex(
-                    int('%s' % line[2], 16) - int(line[-1]))
-                # Get memory stack adress
-                _memory_addr_stack = line[2]
-                # Merge mulitple data to list.
-                less_line = [_index, line[0], line[1],
-                             _memory_addr_stack, _memory_addr_start, line[-1]]
-                stacktrace_list.append(less_line)
+            for x in line:
+                if project_name in x:
+                    # Get memory start adress
+                    _memory_addr_start = hex(
+                        int('%s' % line[2], 16) - int(line[-1]))
+                    # Get memory stack adress
+                    _memory_addr_stack = line[2]
+                    # Merge mulitple data to list.
+                    less_line = [_index, line[0], line[1],
+                                _memory_addr_stack, _memory_addr_start, line[-1]]
+                    stacktrace_list.append(less_line)
         if stacktrace_list:
             # Detect stack memory address length. >10 is 64bit.
             if len(stacktrace_list[-1][3]) == 10:
@@ -138,6 +139,12 @@ class CrashParser:
                 return stacktrace_list, 'arm64'
         else:
             return 0, 0
+
+    def get_dsym_file(self, parent_dir, product_name):
+        for abs_dir, chil_dir, files in os.walk(parent_dir):
+            for _file in files:
+                if product_name in _file:
+                    return os.path.join(abs_dir, _file)
 
     def atos_run(self, dSYM_file, tableid, crash_id, raw_data, product_name):
         """ATOS calling.
@@ -173,7 +180,7 @@ class CrashParser:
         op = '-o'
         _l = '-l'
         _l_method_call = list()
-        _app_symbol_file = dSYM_file + '/Contents/Resources/DWARF/%s' % product_name
+        _app_symbol_file = self.get_dsym_file(dSYM_file, product_name)
 
         # call get_crash_list to filter what data need to parsing.
         stacktrace_list, cpu_arm_ = self.get_stacktrack_list(crash_list=crash_list, project_name=product_name)

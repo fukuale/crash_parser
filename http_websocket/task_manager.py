@@ -15,7 +15,10 @@ from init_dsym import DownloadDSYM
 from jira_handler import JIRAHandler
 from report_export import ReportGenerator
 from read_build_ftp import ReadVersionInfoFromFTP
+from logger import Logger
 
+LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+LOG = Logger(LOG_FILE, 'TaskManager')
 
 class TaskSchedule(object):
     """Scheduling.
@@ -25,8 +28,8 @@ class TaskSchedule(object):
 
         # Truth project name
         self.pjname = {
-            # 'GAMEIM': 'WeGamers',
-            'WELIVE': 'StreamCraft'
+            'GAMEIM': 'WeGamers',
+            'WELIVE': 'GameLive'
             }
 
         # Get configuration file, product name.
@@ -75,6 +78,7 @@ class TaskSchedule(object):
                     if _version_s:
                         yield self.pjname[proj[0]], _version_s
                     else:
+                        LOG.error(' %-20s ]-[ Can not detected svn code with project name(%s) and versions{%s} from build server!' % (LOG.get_function_name(), proj[0], _ver_l))
                         raise ParseBaseInformationException("Can not detected svn code with project name(%s) and versions{%s} from build server!" % (proj[0], _ver_l))
                 else:
                     raise ParseBaseInformationException("Can not read version with project")
@@ -96,7 +100,11 @@ class TaskSchedule(object):
                 # TODO: StreamCraft integration 
                 _c_log = self.get_log.get_task_log(version=version)
                 for _log in _c_log:
-                    if version[0] in _log[-1].decode():
+                    if version[0] == 'StreamCraft':
+                        # Special for StreamCraft.
+                        if 'GameLive' in _log[-1].decode():
+                            yield _log, version
+                    elif version[0] in _log[-1].decode():
                         yield _log, version
             except ReadFromServerException:
                 _no_log_l.append(version)

@@ -277,7 +277,7 @@ def update(conn, cursor, end=True, **kwargs):
             if _index >= 1:
                 _update_sql += ', '
             if 'FREQUENCY' == _value:
-                _update_sql += 'FREQUENCY = FREQUENCY+%s' % kwargs['values'][0]
+                _update_sql += 'FREQUENCY = %s' % kwargs['values'][0]
             else:
                 _update_sql += "%s = \'%s\'" % (_value,
                                                 kwargs['values'][_index])
@@ -322,6 +322,7 @@ def search(conn, cursor, end=True, only=False, **kwargs):
         False:
         [Boolean] -- [When the sqlite3.OpeartioncalError was throw out.]
     """
+    
     try:
         distinct = str()
         if only:
@@ -342,6 +343,6 @@ def search(conn, cursor, end=True, only=False, **kwargs):
 
         return result
     except sqlite3.OperationalError as sqlite_err:
-        LOG.cri(' %-20s ]-[ SQLite search error %s' %
+        LOG.cri(' %-20s ]-[ SQLite search error: %s' %
                 (LOG.get_function_name(), sqlite_err))
         return False

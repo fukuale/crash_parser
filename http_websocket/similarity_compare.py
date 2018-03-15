@@ -100,7 +100,7 @@ class SimilarityCompute(object):
             if chars.__len__() > 6:
                 _first_match = sqlite_base.search(conn, cursor,
                                                   end=False,
-                                                  columns='ROWID, CONTENT',
+                                                  columns='ROWID, FREQUENCY, CONTENT',
                                                   table_name='statistics',
                                                   condition="where CONTENT LIKE \'%%%s%%\'" % chars)
                 break
@@ -142,7 +142,7 @@ class SimilarityCompute(object):
                                              end=False,
                                              table_name='statistics',
                                              columns=['FREQUENCY', 'LAST_VERSION'],
-                                             values=[1, self.ver_info],  # count have to set one character.
+                                             values=[_item[1] + 1, self.ver_info],  # count have to set one character.
                                              condition='where rowid = %d' % _percent_of[-1][0])
                 sqlite_base.insert(conn, cursor,
                                    end=False,
