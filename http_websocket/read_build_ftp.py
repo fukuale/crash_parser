@@ -75,11 +75,19 @@ class ReadVersionInfoFromFTP(object):
         """
         _proj = str()
         _chl = str()
-        for pj_key in pj_list.keys():
-            if project_name == pj_list[pj_key]:
-                _proj = pj_key
-            elif project_name == 'GameLive':
-                _proj = project_name
+        # FIXME: pj_list IS A LIST WHEN CALL BY SPECIAL CRASH_ID.
+        if isinstance(pj_list, dict):
+            for pj_key in pj_list.keys():
+                if project_name == pj_list[pj_key]:
+                    _proj = pj_key
+                elif project_name == 'GameLive':
+                    _proj = project_name
+        else:
+            for pj_key in pj_list:
+                if project_name == pj_key:
+                    _proj = pj_key
+                elif project_name == 'GameLive':
+                    _proj = project_name
 
         if v_type == 'appstore':
             _chl = self.dsym_published
@@ -100,8 +108,8 @@ class ReadVersionInfoFromFTP(object):
             [type] -- [description]
         """
         _pg_res = self.read_page(self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_list=product_list))
-        _pg_res = _pg_res.split('<td>')
-        _file = re.compile('\".*?\"')
+        _pg_res = _pg_res.split('<tr>')
+        _file = re.compile(r"[\w\_]*\.[\w]*\.[0-9].*\.zip")
         for index in range(1, _pg_res.__len__()):
             _res = _pg_res[0 - index].find(build_num)
             if _res > 0:
@@ -109,5 +117,7 @@ class ReadVersionInfoFromFTP(object):
                 _f_name = _file.search(_line)
                 return os.path.join(
                     self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_list=product_list),
-                    _f_name.group(0).replace('"', '').replace('(', r'\(').replace(')', r'\)')
+                    _f_name.group(0).replace('(', r'\(').replace(')', r'\)')
                 )
+        else:
+            raise ReadFromServerException("Can not get the file name from dSYM FTP with build version(%s)" % build_num)

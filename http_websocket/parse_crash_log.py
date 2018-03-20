@@ -266,7 +266,7 @@ class CrashParser:
             else:
                 _raw_data = raw_data
             for _name in project_list:
-                if _name.upper() in _raw_data.upper():
+                if _name.upper() in _raw_data.upper() or 'StreamCraft'.upper() in _raw_data.upper():
                     product_name = _name
                     # For develop version.
                 if '_HOC' in _raw_data:

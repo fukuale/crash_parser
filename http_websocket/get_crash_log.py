@@ -8,6 +8,7 @@ import os
 import queue
 import sys
 import time
+import http
 from urllib import parse, request
 
 from logger import Logger
@@ -143,7 +144,7 @@ class GetCrashInfoFromServer(object):
         except ReadFromServerException as read_err:
             raise ReadFromServerException(read_err.__str__())
 
-    def get_crash_log(self, task_id, projectname):
+    def get_crash_log(self, **args):
         """Get crash log from server.
 
         Arguments:
@@ -152,31 +153,66 @@ class GetCrashInfoFromServer(object):
         Returns:
             [Strint] -- [Crash contetn.]
         """
-        LOG.debug(' %-20s ]-[ Get crash log with ID: %s' % (LOG.get_function_name(), task_id))
+        LOG.debug(' %-20s ]-[ Get crash log with ID: %s' % (LOG.get_function_name(), args['task_id']))
 
-        _req = request.Request
+        _req_l = list()
 
-        if projectname == 'WeGamers':
-            param = {
-                'row': task_id
-            }
+        #FIXME: BAD LOGDIC>
+        header = {
+            'ids': args['task_id'],
+            'sign': self.get_md5(args['task_id'])
+        }
 
-            parm_encode = parse.urlencode(param).encode('utf-8')
+        _req_l.append(request.Request(url=self.sc_get_log_url, headers=header, method='GET'))
 
-            _req = request.Request(url=self.wg_get_log_url, data=parm_encode, method='POST')
-        elif projectname == 'GameLive':
-            header = {
-                'ids': task_id,
-                'sign': self.get_md5(task_id)
-            }
 
-            _req = request.Request(url=self.sc_get_log_url, headers=header, method='GET')
-        else:
-            raise ReadFromServerException("Projectname match no options. Can not get crash infomation.")
-        # TODO: Http status 200 judge logic. to ensure the server still works.
-        crash_content = request.urlopen(_req).read()
-        LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), task_id))
-        return crash_content
+        param = {
+            'row': args['task_id']
+        }
+        parm_encode = parse.urlencode(param).encode('utf-8')
+        _req_l.append(request.Request(url=self.wg_get_log_url, data=parm_encode, method='POST'))
+
+        crash_content = bytes()
+
+        for req_k, req_v in enumerate(_req_l):
+            try:
+                _request = None
+                if args.__len__() > 1:
+                    if args['projectname'] == 'WeGamers':
+                        _request = request.urlopen(_req_l[-1])
+                    elif args['projectname'] == 'GameLive':
+                        _request = request.urlopen(_req_l[0])
+                else:
+                    _request = request.urlopen(req_v)
+                if _request.getcode() == 200:
+                    crash_content = _request.read()
+                    if crash_content.__len__() < 100:
+                        crash_content = b''
+            except request.HTTPError as HttpErr:
+                LOG.debug(' %-20s ]-[ HTTPError with url %s, reason: %s, code: %s ' % (
+                    LOG.get_function_name(),
+                    HttpErr.geturl(),
+                    HttpErr.reason,
+                    HttpErr.code))
+            except request.URLError as UrlErr:
+                LOG.debug(' %-20s ]-[ UrlError with url %s, reason: %s' % (
+                    LOG.get_function_name(),
+                    req_v.get_full_url,
+                    UrlErr.reason))
+            finally: 
+                if not crash_content:
+                    if req_k == _req_l.__len__() - 1:
+                        if HttpErr:
+                            raise ReadFromServerException("%s, %s" % (HttpErr.code, HttpErr.reason))
+                        elif UrlErr:
+                            raise ReadFromServerException(UrlErr.reason)
+                        else:
+                            raise ReadFromServerException("can not read crash log with %s. Both WeGamers & StreamCraft." % args['task_id'])
+                else:
+                    LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), args['task_id']))
+                    return crash_content
+
+
 
     def get_task_log(self, version, date=YESTERDAY):
         """Get the log content from web API within specific id.
@@ -201,7 +237,7 @@ class GetCrashInfoFromServer(object):
                 raise ReadFromServerException('No content has read.')
             else:
                 for task_id in task_ids:
-                    _crash_log = self.get_crash_log(task_id, version[0])
+                    _crash_log = self.get_crash_log(task_id=task_id, projectname=version[0])
                     yield task_id, _crash_log
         else:
             raise TypeError('The type error of variable "version". Expected %s. But %s ' % (type(tuple()), type(version)))

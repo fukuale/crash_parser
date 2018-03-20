@@ -133,7 +133,7 @@ class TaskSchedule(object):
             # Crash id in.
             elif raw_data.startswith('if'):
                 task_id = raw_data
-                #FIXME: ERROR.
+
                 crash_content = self.get_log.get_crash_log(task_id=task_id)
                 if len(crash_content) > 100:
                     return self.parser.parsing(raw_data=crash_content,
