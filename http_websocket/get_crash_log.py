@@ -108,7 +108,6 @@ class GetCrashInfoFromServer(object):
         else:
             raise ReadFromServerException("Projectname match no options. Can not read crash ids list.")
         try:
-            # FIXME: DEBUG MEMORY ERROR. 
             # TODO: Http status 200 judge logic. to ensure the server still works.
             task_list = request.urlopen(_req).read()
             # Validation data validity.
@@ -119,7 +118,7 @@ class GetCrashInfoFromServer(object):
                 # remove the id is not startswith 'if'. if=iOS Crash.
                 _temp_list = list()
                 for x in _task_list:
-                    if not x.startswith('i'):
+                    if not x.startswith('if'):
                         _temp_list.append(x)
                 _task_list = list(set(_task_list).difference(_temp_list))
                 # If len == 0. Try to get the the day before.
@@ -157,14 +156,11 @@ class GetCrashInfoFromServer(object):
 
         _req_l = list()
 
-        #FIXME: BAD LOGDIC>
         header = {
             'ids': args['task_id'],
             'sign': self.get_md5(args['task_id'])
         }
-
         _req_l.append(request.Request(url=self.sc_get_log_url, headers=header, method='GET'))
-
 
         param = {
             'row': args['task_id']
@@ -211,9 +207,7 @@ class GetCrashInfoFromServer(object):
                 else:
                     LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), args['task_id']))
                     return crash_content
-
-
-
+ 
     def get_task_log(self, version, date=YESTERDAY):
         """Get the log content from web API within specific id.
         

@@ -345,22 +345,18 @@ class ReportGenerator(SimilarityCompute):
             # Get summary from JIRA issue.
             _exists_summary = _issue.fields.summary
             # Get Frequency from JIRA issue.
-            _frequency_string = _exists_summary[_exists_summary.find('[Frequency'):]
+            frequency_regular_result = regular_common.frequency(_exists_summary)
             # Get Frequency integer data. Reasons might be have integer too.
-            if _frequency_string == -1:
+            if not hasattr(frequency_regular_result, 'group'):
                 LOG.cri(' %-20s ]-[ Issue %s did not have the keyword(frequency).' % (LOG.get_function_name(), _reasons[2]))
-                pass
-            _frequency_int = int(regular_common.interge(_frequency_string))
-
-            if _reasons[-1] == _frequency_int:
-                pass
             else:
-                # Re-stitching summary with the new frequency data.
-                summary = _exists_summary[:_exists_summary.find('[Frequency')] + '[Frequency:%s]' % _reasons[-1]
-            if _version_new or summary:
-                self.jirahandler.update_issue(_issue, _version_new, summary)
-            else:
-                LOG.info(' %-20s ]-[ Issue %s need not to update.' % (LOG.get_function_name(), _reasons[-2]))
+                _frequency_int = int(regular_common.interge(frequency_regular_result.group(0)).group(0))
+                if _reasons[-1] != _frequency_int:
+                    summary = regular_common.replace_frequency(_exists_summary, 'Frequency:%s' % _reasons[-1])
+                    if _version_new or summary:
+                        self.jirahandler.update_issue(_issue, _version_new, summary)
+                    else:
+                        LOG.info(' %-20s ]-[ Issue %s need not to update.' % (LOG.get_function_name(), _reasons[-2]))
         ReportGenerator.sum_tables()
 
     def submit_jira(self):
@@ -417,7 +413,7 @@ class ReportGenerator(SimilarityCompute):
 
                     if isinstance(_jira_id, jira.resources.Issue):
                         # If ==, means submit success.
-                        if regular_common.jira_id(_jira_id.key) == _jira_id.key:
+                        if regular_common.jira_id(_jira_id.key).group(0) == _jira_id.key:
                             # Insert data to reasons table.
                             _rowid = sqlite_base.insert(conn2, cursor2,
                                                         end=False,

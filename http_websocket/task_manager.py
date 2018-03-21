@@ -6,6 +6,7 @@ from multiprocessing import Manager, Pool, Queue
 
 import zmq
 
+import regular_common
 from get_crash_log import GetCrashInfoFromServer
 from init_dsym import DownloadDSYM
 from jira_handler import JIRAHandler
@@ -96,7 +97,6 @@ class TaskSchedule(object):
             # Read log with version information.
             count += 1
             try:
-                # TODO: StreamCraft integration 
                 _c_log = self.get_log.get_task_log(version=version)
                 for _log in _c_log:
                     if version[0] == 'StreamCraft':
@@ -123,11 +123,13 @@ class TaskSchedule(object):
             [type] -- [description]
         """
         # Url or crash id in.
+        
         if raw_data != 'guopengzhang':
             #Url in.
-            if raw_data.startswith('http')  :
-                if raw_data.find('row=') >= 0:
-                    task_id = raw_data.split('=')[-1]
+            if raw_data.startswith('http'):
+                _regular_result = regular_common.crash_id(raw_data)
+                if hasattr(_regular_result, 'group'):
+                    task_id = _regular_result.group(0)
                 else:
                     return 'Incomplete Link. Please paste that what link you can get crash information on browser!'
             # Crash id in.
@@ -141,7 +143,7 @@ class TaskSchedule(object):
                 else:
                     return "Can\'t read any content from the link. \nCheck it manully !"
             # Crash log in.
-            elif raw_data.find("deviceType") and raw_data.find("0x00") and raw_data.find("version"):
+            elif "deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data:
                 return self.parser.parsing(raw_data=raw_data,
                                             project_list=self.pjname.values())
             else:

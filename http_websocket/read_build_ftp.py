@@ -63,7 +63,7 @@ class ReadVersionInfoFromFTP(object):
                     _b_code = _build.search(_pg_res[0 - index])
                     return 'V%s (%s) [正式版]' % (ver, _b_code.group(0).replace('r', ''))
 
-    def dsym_addr_stithing(self, project_name, v_type, pj_list):
+    def dsym_addr_stithing(self, project_name, v_type, pj_ld):
         """[summary]
 
         Arguments:
@@ -75,15 +75,14 @@ class ReadVersionInfoFromFTP(object):
         """
         _proj = str()
         _chl = str()
-        # FIXME: pj_list IS A LIST WHEN CALL BY SPECIAL CRASH_ID.
-        if isinstance(pj_list, dict):
-            for pj_key in pj_list.keys():
-                if project_name == pj_list[pj_key]:
+        if isinstance(pj_ld, dict):
+            for pj_key in pj_ld.keys():
+                if project_name == pj_ld[pj_key]:
                     _proj = pj_key
                 elif project_name == 'GameLive':
                     _proj = project_name
         else:
-            for pj_key in pj_list:
+            for pj_key in pj_ld:
                 if project_name == pj_key:
                     _proj = pj_key
                 elif project_name == 'GameLive':
@@ -107,7 +106,7 @@ class ReadVersionInfoFromFTP(object):
         Returns:
             [type] -- [description]
         """
-        _pg_res = self.read_page(self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_list=product_list))
+        _pg_res = self.read_page(self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_ld=product_list))
         _pg_res = _pg_res.split('<tr>')
         _file = re.compile(r"[\w\_]*\.[\w]*\.[0-9].*\.zip")
         for index in range(1, _pg_res.__len__()):
@@ -116,7 +115,7 @@ class ReadVersionInfoFromFTP(object):
                 _line = _pg_res[0 - index]
                 _f_name = _file.search(_line)
                 return os.path.join(
-                    self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_list=product_list),
+                    self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_ld=product_list),
                     _f_name.group(0).replace('(', r'\(').replace(')', r'\)')
                 )
         else:
