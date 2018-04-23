@@ -209,26 +209,26 @@ class GetCrashInfoFromServer(object):
                     return crash_content
  
     def get_task_log(self, version, date=YESTERDAY):
-        """Get the log content from web API within specific id.
+        """Generation each log via web API from analysis server.
         
         Arguments:
-            version {[type]} -- [description]
+            version {String} -- [The spcified version]
         
         Keyword Arguments:
-            date {[type]} -- [description] (default: {YESTERDAY})
+            date {String} -- [The date format string. E.g: 2018-03-17] (default: {YESTERDAY})
         
         Raises:
-            ReadFromServerException -- [description]
-            TypeError -- [description]
-        
-        Yields:
-            [type] -- [description]
+            ReadFromServerException -- [Getting nothing from server]
+            TypeError -- [Maybe it is a useless raise.]
+
+        Yield:
+            [Tuple] -- (task_id, crash_log)
         """
         if isinstance(version, tuple):
-            # Get crashes
+            # Get crash ids from server
             task_ids = self.get_task_list(version=version, date=date)
             if not task_ids:
-                raise ReadFromServerException('No content has read.')
+                raise ReadFromServerException('Getting nothing from server.')
             else:
                 for task_id in task_ids:
                     _crash_log = self.get_crash_log(task_id=task_id, projectname=version[0])

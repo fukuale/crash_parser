@@ -21,7 +21,7 @@ class ReadVersionInfoFromFTP(object):
         """Url stitching.
 
         Arguments:
-            project_name {List} -- [Project name.]
+            project_name {String} -- [Project name.]
 
         Returns:
             [String] -- [Full url address.]
@@ -29,16 +29,17 @@ class ReadVersionInfoFromFTP(object):
         return os.path.join(self.domain, project_name, self.platform, self.appstore)
 
     def read_page(self, url):
-        """Read FTP page.
+        """Read FTP page source code.
 
         Arguments:
             url {String} -- [FTP address.]
 
         Returns:
-            [String] -- [Page content.]
+            [String] -- [Page source.]
         """
         if 'WELIVE' in url and url.startswith('http://10.0.2.188'):
             url = url.replace('WELIVE', 'GAMELIVE')
+        # Chinese encoding.
         url = parse.quote(url, safe='/:?=')
         try:
             return request.urlopen(url=url).read().decode('utf-8')
@@ -46,22 +47,24 @@ class ReadVersionInfoFromFTP(object):
             raise ReadFromServerException('%s(%s)' % (http_err, url))
 
     def stitching_last_version(self, project_name, jira_ver):
-        """Get the version code of last build.
-
+        """Stitching the version information of the biggest one that has been published.
+        
         Arguments:
-            project_name {String} -- [The name of project.]
-            jira_ver {List} -- [The versions of this project.]
+            project_name {String} -- [The name of the project.]
+            jira_ver {List} -- [The versions of the project.]
+        
+        Returns:
+            [String] -- [The version information of the biggest version]
         """
         _pg_res = self.read_page(self.url_stitching(project_name=project_name)).split()
         _build = re.compile(r'[r]\d+')
-        # reversed version list. Promote efficiency
+        # reversed version list. Promote efficiency.
         for ver in reversed(jira_ver):
             for index in range(1, _pg_res.__len__()):
                 # Matching in reversed
-                _res = _pg_res[0 - index].find(ver)
-                if _res > 0:
-                    _b_code = _build.search(_pg_res[0 - index])
-                    return 'V%s (%s) [正式版]' % (ver, _b_code.group(0).replace('r', ''))
+                if ver in _pg_res[0 - index]:
+                    _build_match = _build.search(_pg_res[0 - index])
+                    return 'V%s (%s) [正式版]' % (ver, _build_match.group(0).replace('r', ''))
 
     def dsym_addr_stithing(self, project_name, v_type, pj_ld):
         """[summary]
@@ -76,6 +79,7 @@ class ReadVersionInfoFromFTP(object):
         _proj = str()
         _chl = str()
         if isinstance(pj_ld, dict):
+            # FIXME: type error.
             for pj_key in pj_ld.keys():
                 if project_name == pj_ld[pj_key]:
                     _proj = pj_key

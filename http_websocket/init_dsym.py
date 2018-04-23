@@ -77,10 +77,10 @@ class DownloadDSYM(object):
                         # Get the unzipped file name.
                         grep_file = str()
                         # For StreamCraft.... The name is different with each place..
-                        if product_name == 'GameLive':
-                            grep_file = 'ls %s | grep %s_AppStore.app' % (self.default_download_folder, product_name)
-                        else:
-                            grep_file = 'ls %s | grep %s.app' % (self.default_download_folder, product_name)
+                        # if product_name == 'GameLive':
+                        #     grep_file = 'ls %s | grep %s_AppStore.app' % (self.default_download_folder, product_name)
+                        # else:
+                        grep_file = "ls %s | grep '%s.app\|%s_HOC.app'" % (self.default_download_folder, product_name, product_name)
                         result = self.proc.sub_procs_run(cmd=grep_file).stdout.decode().split()[0]
                         # Rename unzipped file.
                         os.rename(os.path.join(self.default_download_folder, result),

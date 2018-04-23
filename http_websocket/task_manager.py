@@ -66,13 +66,13 @@ class TaskSchedule(object):
             ParseBaseInformationException -- [description]
 
         Yields:
-            [Tuple] -- [0)Product name, 1)Version info of this project.EG. V1.1.1XXX]
+            [Tuple] -- 0)Product name, 1)Version info of this project.EG. V1.1.1XXX
         """
         for proj in self.jira.get_projects():
             if proj[0] in self.pjname.keys():
-                # Read all the versions of this project from JIRA.
+                # Read newest 5 versions from JIRA
                 _ver_l = self.jira.read_project_versions(project_name=proj[0])
-                # Stitching version information for read crash ids from server.
+                # Stitching version information to read crash ids from server
                 if _ver_l.__len__() > 0:
                     _version_s = self.build_code.stitching_last_version(project_name=proj[0], jira_ver=_ver_l)
                     if _version_s:
@@ -81,14 +81,16 @@ class TaskSchedule(object):
                         LOG.error(' %-20s ]-[ Can not detected svn code with project name(%s) and versions{%s} from build server!' % (LOG.get_function_name(), proj[0], _ver_l))
                         raise ParseBaseInformationException("Can not detected svn code with project name(%s) and versions{%s} from build server!" % (proj[0], _ver_l))
                 else:
-                    raise ParseBaseInformationException("Can not read version with project")
-                    # raise ParseBaseInformationException("Can not read version with project %s" % proj[0])
+                    raise ParseBaseInformationException("Can not read version with project(%s)" % proj[0])
 
     def read_log_from_server(self):
-        """Read crash log id list from server with version.
+        """Getting each crash log from server.
+        
+        Raises:
+            ReadFromServerException -- [getting nothing from server]
 
-        Yields:
-            [Tuple] -- [0)]
+        Yield:
+            [Tuple] -- ((Crash id, Crash log), (project name, version information))
         """
         _version_l = self.gen_version_list()
         _no_log_l = list()
@@ -139,13 +141,14 @@ class TaskSchedule(object):
                 crash_content = self.get_log.get_crash_log(task_id=task_id)
                 if len(crash_content) > 100:
                     return self.parser.parsing(raw_data=crash_content,
-                                            project_list=self.pjname.values())
+                                            project_list=self.pjname)
                 else:
                     return "Can\'t read any content from the link. \nCheck it manully !"
             # Crash log in.
-            elif "deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data:
+            elif ("deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data) or (
+                     "Hardware Model" in raw_data and "Version" in raw_data):
                 return self.parser.parsing(raw_data=raw_data,
-                                            project_list=self.pjname.values())
+                                            project_list=self.pjname)
             else:
                 return 'Can\'t read environment information from this log content. ' \
                     '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
@@ -160,9 +163,10 @@ class TaskSchedule(object):
                 for crash_info in self.read_log_from_server():
                     _project_name = str()
                     env = self.parser.get_ver_info(crash_info[0][-1])
-                    for key, _proj_n in enumerate(self.pjname.values()):
-                        if _proj_n in str(crash_info[0][-1]):
-                            _project_name = _proj_n
+                    # TODO: CONTINUE FROM HERE.
+                    for key, _proj_name in enumerate(self.pjname.values()):
+                        if _proj_name in str(crash_info[0][-1]):
+                            _project_name = _proj_name
                             break
                         else:
                             if key == self.pjname.values().__len__() - 1:

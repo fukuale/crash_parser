@@ -10,6 +10,7 @@ from init_dsym import DownloadDSYM
 from logger import Logger
 from parser_exception import ParseBaseInformationException, ParserException
 from similarity_compare import SimilarityCompute
+import regular_common as search
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'ParseCrashLog')
@@ -20,7 +21,7 @@ class CrashParser:
     """
     def __init__(self):
         super(CrashParser, self).__init__()
-        self.report_sql = 'ReportInfo.sqlite'
+        # self.report_sql = 'ReportInfo.sqlite'
         self.build_number = str()
         self.version_number = str()
         self.proc = subproc.SubProcessBase()
@@ -34,29 +35,40 @@ class CrashParser:
             2) _id (Which line included the max line number, eg: -1, It is the negative index of list.)
         """
         _id = -1
+        _pre_fix = int()
+        if '_HOC' in crash_list.__str__():
+            for _index, _start in enumerate(crash_list):
+                if _start.startswith('Thread 0'):
+                    _pre_fix = _index
+                    break
         while True:
             try:
-                # try to set list[0] to a integer.
-                max_trac = int(crash_list[_id].split()[0])
-                return max_trac + 1, _id
+                _item = crash_list[_id]
+                if _item.strip():
+                    # try to set list[0] to a integer.
+                    max_trac = int(_item.split()[0])
+                    if _pre_fix:
+                        return  len(crash_list) + _id - _pre_fix, _id
+                    return max_trac + 1, _id
+                else:
+                    _id -= 1
             except ValueError:
                 _id -= 1
+                print(_id)
 
     @staticmethod
     def get_ver_info(data_in):
-        """Get version info from crashes content.
+        """Parsing version information from crash log
 
         Arguments:
-            data_in {Unknow} -- [Crash content.]
+            data_in {No limit} -- [The crash log]
 
         Raises:
-            ParserException -- [Could not detected version information in this content.]
-        """
-        # Complier regular expression
-        _version = re.compile(r'\d+(\.\d+){0,2}')       # version code
-        _build = re.compile(r'[\d]+')                   # Consecutive numbers (for build number)
-        _ver_type = re.compile(r'[\u4e00-\u9fa5]+')     # Match chinese (for version type)
+            ParserException -- [Could not detected version information in this content]
 
+        Returns:
+            [List] -- [version_number, build_number, app_use_for]
+        """
         # Change data type to list object.
         content = list()
         if isinstance(data_in, bytes):
@@ -68,13 +80,15 @@ class CrashParser:
 
         # Parsing version info
         for i in content:
-            if 'version' in i:
-                version_code = _version.search(i)
-                build_number = _build.findall(i)
-                if _ver_type.findall(i)[0] == '正式版':
-                    return [version_code.group(0), build_number[-1], 'appstore']
+            if 'version' in i or 'Version' in i:
+                version_code = search.version_number(i)
+                build_number = search.consecutive_number(i)
+                chinese = search.chinese(i)
+                if hasattr(chinese, 'group'):
+                    if search.chinese(i).group(0) == '正式版':
+                        return [version_code.group(0), build_number.group(0), 'appstore']
                 else:
-                    return [version_code.group(0), build_number[-1], 'dev']
+                    return [version_code.group(0), build_number.group(0), 'dev']
         raise ParserException('Could not detected version information in this content.')
 
     @staticmethod
@@ -265,12 +279,14 @@ class CrashParser:
                 _raw_data = raw_data.decode()
             else:
                 _raw_data = raw_data
-            for _name in project_list:
-                if _name.upper() in _raw_data.upper() or 'StreamCraft'.upper() in _raw_data.upper():
+            for _name in project_list.values():
+                if _name.upper() in _raw_data.upper() or _name.upper() in _raw_data.upper():
                     product_name = _name
                     # For develop version.
-                if '_HOC' in _raw_data:
-                    product_name += '_HOC'
+                # if '_HOC' in _raw_data:
+                #     product_name += '_HOC'
+                    break
+                # break
             if not product_name:
                 raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
 
@@ -296,5 +312,5 @@ class CrashParser:
         return self.atos_run(dSYM_file=abs_dsym,
                              product_name=product_name,
                              raw_data=raw_data,
-                             tableid=_row_id,
+                             tableid=0,
                              crash_id=task_id)

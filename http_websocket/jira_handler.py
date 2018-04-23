@@ -3,13 +3,13 @@
 import re
 
 from jira import JIRA, JIRAError
-
+import regular_common
 
 class JIRAHandler(object):
     """JIRA handler"""
     def __init__(self):
         super(JIRAHandler, self).__init__()
-        self.jira_addr = 'http://192.168.1.125:8080'
+        self.jira_addr = 'http://192.168.1.101:32777'
         self.acc = 'CrashParser'
         self.acc_pwd = 'qwer1234'
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))
@@ -174,26 +174,27 @@ class JIRAHandler(object):
             return issue.update(fields={'summary': summary})
 
     def read_project_versions(self, project_name):
-        """Get versions with the specific project name.
+        """Get all versions with the specified project.
 
         Arguments:
             project_name {String} -- [The name of the project.]
 
         Returns:
-            [List] -- [The newest 5 version of target project.]
+            [List] -- [The biggest 5 versons of getting versions. all if not enough.]
         """
         _versions_l = list()
-        for ver_ori in self.jira.project_versions(project=project_name):
-            ver_aft = re.compile(r'\d+(\.\d+){0,5}').search(ver_ori.name)
+        for ver_jira in self.jira.project_versions(project=project_name):
+            # Filter the truthly version number.
+            ver_aft = regular_common.version_number(ver_jira.name)
             if ver_aft:
-                # Ensure the version code is complete.
-                if len(ver_aft.group(0)) == len(ver_ori.name):
-                    _versions_l.append(ver_ori.name)
+                # Ensure the completeness of version number.
+                # This is an invalid version number if does not match.
+                if len(ver_aft.group(0)) == len(ver_jira.name):
+                    _versions_l.append(ver_jira.name)
         if _versions_l.__len__() > 0:
             _versions_l.sort(key=lambda x: tuple(int(v) for v in x.split('.')))
             if _versions_l.__len__() < 5:
                 return _versions_l
-            # More than 3 items. Return the last 3 items.
             else:
                 return _versions_l[-5:]
 
