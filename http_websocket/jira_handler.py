@@ -9,7 +9,7 @@ class JIRAHandler(object):
     """JIRA handler"""
     def __init__(self):
         super(JIRAHandler, self).__init__()
-        self.jira_addr = 'http://192.168.1.101:32777'
+        self.jira_addr = 'http://10.0.13.12:32774'
         self.acc = 'CrashParser'
         self.acc_pwd = 'qwer1234'
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))

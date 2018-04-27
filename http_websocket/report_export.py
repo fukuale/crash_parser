@@ -359,7 +359,7 @@ class ReportGenerator(SimilarityCompute):
                         LOG.info(' %-20s ]-[ Issue %s need not to update.' % (LOG.get_function_name(), _reasons[-2]))
         ReportGenerator.sum_tables()
 
-    def submit_jira(self):
+    def submit_jira(self, pjname_dict):
         """Submit issues to JIRA server.
         """
         # Get the reasons need to submit of today.
@@ -388,7 +388,8 @@ class ReportGenerator(SimilarityCompute):
 
                     for _log in _log_l:
                         for _product_n in self.product_name_list:
-                            if -1 != _log.find(_product_n):
+                            # Special handle for StreamCraft.
+                            if -1 != _log.find(_product_n) or -1 != _log.find('StreamCraft'):
                                 __projname = _product_n
                                 if __projname:
                                     # Get the truth reason of crash.
@@ -403,6 +404,8 @@ class ReportGenerator(SimilarityCompute):
                     __summary = 'Crash Analysis: ' + __cr + '[Frequency:%s]' % _crash_id[2]
 
                     # submit to JIRA server.
+                    # FIXME: PROJECT NAME NEED TO CHANGE TO SELF.PJNAME.KEY.
+                    # projname = list(pjname_dict.keys())[list(pjname_dict.values()).index(__projname)]
                     _jira_id = self.jirahandler.create(pjname=__projname,
                                                        summary=__summary,
                                                        environment=__env,

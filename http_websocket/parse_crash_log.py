@@ -21,7 +21,7 @@ class CrashParser:
     """
     def __init__(self):
         super(CrashParser, self).__init__()
-        # self.report_sql = 'ReportInfo.sqlite'
+        self.report_sql = 'ReportInfo.sqlite'
         self.build_number = str()
         self.version_number = str()
         self.proc = subproc.SubProcessBase()
@@ -54,7 +54,6 @@ class CrashParser:
                     _id -= 1
             except ValueError:
                 _id -= 1
-                print(_id)
 
     @staticmethod
     def get_ver_info(data_in):
@@ -135,7 +134,8 @@ class CrashParser:
             line = crash_list[_index].split()
             # Get list data by reverse order.
             for x in line:
-                if project_name in x:
+                # Special handle for StreamCraft.
+                if project_name in x or 'StreamCraft' in x:
                     # Get memory start adress
                     _memory_addr_start = hex(
                         int('%s' % line[2], 16) - int(line[-1]))
@@ -145,6 +145,7 @@ class CrashParser:
                     less_line = [_index, line[0], line[1],
                                 _memory_addr_stack, _memory_addr_start, line[-1]]
                     stacktrace_list.append(less_line)
+                    break
         if stacktrace_list:
             # Detect stack memory address length. >10 is 64bit.
             if len(stacktrace_list[-1][3]) == 10:
@@ -157,7 +158,8 @@ class CrashParser:
     def get_dsym_file(self, parent_dir, product_name):
         for abs_dir, chil_dir, files in os.walk(parent_dir):
             for _file in files:
-                if product_name in _file:
+                # Special handle for StreamCraft.
+                if product_name in _file or 'StreamCraft' in _file:
                     return os.path.join(abs_dir, _file)
 
     def atos_run(self, dSYM_file, tableid, crash_id, raw_data, product_name):
@@ -241,6 +243,7 @@ class CrashParser:
             conn, cursor = sqlite_base.sqlite_connect()
             # Insert crash method call.
             # Used to compute frenquency of appearing.
+            # FIXME: INSERT DUPLICATE DATA TO BACKTRACK TABLES.
             sqlite_base.update(conn, cursor,
                                table_name='backtrack_%d' % tableid,
                                reason=','.join(_l_method_call),
@@ -272,6 +275,8 @@ class CrashParser:
         Returns:
             [String] -- [The crash log after parse.]
         """
+
+        _row_id = int()
         # Set value to _product_name when product name was detected.
         if not product_name:
             _raw_data = str()
@@ -305,12 +310,13 @@ class CrashParser:
         _reason = CrashParser.get_apple_reason(raw_data=raw_data)
 
         # Compute similarity with old data.
-        _sc = SimilarityCompute(versioninfo=version_info[0], crashid=task_id)
-        _row_id = _sc.apple_locate_similarity(_reason)
+        if task_id:
+            _sc = SimilarityCompute(versioninfo=version_info[0], crashid=task_id)
+            _row_id = _sc.apple_locate_similarity(_reason)
 
         # Parse Stacktrace information.
         return self.atos_run(dSYM_file=abs_dsym,
                              product_name=product_name,
                              raw_data=raw_data,
-                             tableid=0,
+                             tableid=_row_id,
                              crash_id=task_id)

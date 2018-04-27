@@ -101,9 +101,9 @@ class TaskSchedule(object):
             try:
                 _c_log = self.get_log.get_task_log(version=version)
                 for _log in _c_log:
-                    if version[0] == 'StreamCraft':
-                        # Special for StreamCraft.
-                        if 'GameLive' in _log[-1].decode():
+                    if version[0] == 'GameLive':
+                        # Special handle for StreamCraft.
+                        if 'StreamCraft' in _log[-1].decode():
                             yield _log, version
                     elif version[0] in _log[-1].decode():
                         yield _log, version
@@ -165,7 +165,9 @@ class TaskSchedule(object):
                     env = self.parser.get_ver_info(crash_info[0][-1])
                     # TODO: CONTINUE FROM HERE.
                     for key, _proj_name in enumerate(self.pjname.values()):
-                        if _proj_name in str(crash_info[0][-1]):
+                        _log = str(crash_info[0][-1])
+                        # Special handle for StreamCraft.
+                        if _proj_name in _log or 'StreamCraft' in _log:
                             _project_name = _proj_name
                             break
                         else:
@@ -192,7 +194,7 @@ class TaskSchedule(object):
         """Call JIRA method.
         """
         _report_gen = ReportGenerator(product_name_list=self.pjname.values())
-        _report_gen.submit_jira()
+        _report_gen.submit_jira(pjname_dict=self.pjname)
         _report_gen.update_jira()
 
     def start(self):

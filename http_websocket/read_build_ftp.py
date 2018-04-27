@@ -81,10 +81,10 @@ class ReadVersionInfoFromFTP(object):
         if isinstance(pj_ld, dict):
             # FIXME: type error.
             for pj_key in pj_ld.keys():
-                if project_name == pj_ld[pj_key]:
-                    _proj = pj_key
-                elif project_name == 'GameLive':
+                if project_name == 'GameLive':
                     _proj = project_name
+                elif project_name == pj_ld[pj_key]:
+                    _proj = pj_key
         else:
             for pj_key in pj_ld:
                 if project_name == pj_key:
