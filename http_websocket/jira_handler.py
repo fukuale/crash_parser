@@ -71,6 +71,11 @@ class JIRAHandler(object):
         """
         return {'id': '10500'}
 
+    def project_streamcraft(self):
+        """StreamCraft id.
+        """
+        return {'id': '10500'}
+
     def project_messenger(self):
         """LINKMESSENGER id.
         """

@@ -359,7 +359,7 @@ class ReportGenerator(SimilarityCompute):
                         LOG.info(' %-20s ]-[ Issue %s need not to update.' % (LOG.get_function_name(), _reasons[-2]))
         ReportGenerator.sum_tables()
 
-    def submit_jira(self, pjname_dict):
+    def submit_jira(self):
         """Submit issues to JIRA server.
         """
         # Get the reasons need to submit of today.
@@ -381,37 +381,40 @@ class ReportGenerator(SimilarityCompute):
                     _log_l = _log_finally[0][0].split('\n')
 
                     # Get the first 7 lines of environment data to submit. Formart.
-                    __env = '\n'.join(_log_l[1:7])
+                    _env = '\n'.join(_log_l[1:7])
 
                     # Get version code.
-                    __ver = CrashParser.get_ver_info(_log_l)[0]
+                    _ver = CrashParser.get_ver_info(_log_l)[0]
 
                     for _log in _log_l:
-                        for _product_n in self.product_name_list:
+                        projname2JIRA = str()
+                        for _product_n in self.product_name_list.values():
                             # Special handle for StreamCraft.
-                            if -1 != _log.find(_product_n) or -1 != _log.find('StreamCraft'):
-                                __projname = _product_n
-                                if __projname:
-                                    # Get the truth reason of crash.
-                                    __cr = ''.join(_log.split()[4:])
-                                    break
+                            if _product_n in _log:
+                                projname2JIRA = _product_n
+                            elif 'StreamCraft' in _log:
+                                projname2JIRA = 'StreamCraft'
+                            if projname2JIRA:
+                                # Get the truth reason of crash.
+                                __cr = ''.join(_log.split()[4:])
+                                break
                         else:
                             continue
                         break
                     else:
                         continue
                     # Stitching the summary wait to submit.
-                    __summary = 'Crash Analysis: ' + __cr + '[Frequency:%s]' % _crash_id[2]
+                    _summary = 'Crash Analysis: ' + __cr + '[Frequency:%s]' % _crash_id[2]
 
                     # submit to JIRA server.
                     # FIXME: PROJECT NAME NEED TO CHANGE TO SELF.PJNAME.KEY.
                     # projname = list(pjname_dict.keys())[list(pjname_dict.values()).index(__projname)]
-                    _jira_id = self.jirahandler.create(pjname=__projname,
-                                                       summary=__summary,
-                                                       environment=__env,
+                    _jira_id = self.jirahandler.create(pjname=projname2JIRA,
+                                                       summary=_summary,
+                                                       environment=_env,
                                                        description=_log_finally[0][0].replace('<pre>', '').replace(
                                                            '</pre>', ''),
-                                                       version=__ver,
+                                                       version=_ver,
                                                        priority='urgen')
 
                     if isinstance(_jira_id, jira.resources.Issue):
