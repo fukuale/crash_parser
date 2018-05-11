@@ -119,7 +119,7 @@ def create_report_table(conn, cursor, end=True):
         end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
     """
     cursor.execute(
-        'CREATE TABLE report(CRASH_ID MESSAGE_TEXT, LOG MESSAGE_TEXT);')
+        'CREATE TABLE report(CRASH_ID MESSAGE_TEXT, PROJECT MESSAGE_TEXT, LOG MESSAGE_TEXT);')
     if end:
         cursor.close()
         conn.close()
@@ -218,7 +218,6 @@ def insert(conn, cursor, end=True, **kwargs):
     Returns:
         [Integer] -- [The line id just was inserted.]
     """
-    inse = str()
     if create_tables(
             conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
@@ -246,7 +245,6 @@ def insert(conn, cursor, end=True, **kwargs):
                            (kwargs['crash_id'], get_today_timestamp()))
 
     _row_id = cursor.execute('SELECT LAST_INSERT_ROWID()').fetchall()[0][0]
-    cursor.execute(inse)
     conn.commit()
     if end:
         cursor.close()

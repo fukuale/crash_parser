@@ -62,15 +62,18 @@ class GetCrashInfoFromServer(object):
         md5.update((self.sec_key + str(data)).encode())
         return md5.hexdigest().lower()
 
-    def get_task_list(self, version, date, times=4, before=0):
-        """Get crash_id from web API
-
+    def splicing_ids_url(self, version, date):
+        """Splicing the url of http API
+        
         Arguments:
             version {String} -- [The version from JIRA]
-            date {String} -- [Date timestamp.]
-
+            date {String} -- [Date format string]
+        
+        Raises:
+            ReadFromServerException -- [description]
+        
         Returns:
-            [List] -- [The crash ids list.]
+            [type] -- [description]
         """
         # Define request for urlopen.
         _req = request.Request
@@ -85,11 +88,10 @@ class GetCrashInfoFromServer(object):
                 'ver': version[-1],
                 'sign': self.get_md5(date)
             }
-            print('WeGamers', date)
             # parameters include the chinese characters. Need to encode with UTF-8.
             url_params = parse.urlencode(params).encode('utf-8')
 
-            _req = request.Request(url=self.wg_get_ids_url, data=url_params, method='POST')
+            return request.Request(url=self.wg_get_ids_url, data=url_params, method='POST')
 
         # Set request parameters to headers and request via method GET.
         elif version[0] == 'GameLive':
@@ -104,15 +106,29 @@ class GetCrashInfoFromServer(object):
                 'sign': self.get_md5(_strpdate)
             }
 
-            _req = request.Request(url=self.sc_get_ids_url, headers=header, method='GET')
+            return request.Request(url=self.sc_get_ids_url, headers=header, method='GET')
         else:
-            raise ReadFromServerException("Projectname match no options. Can not read crash ids list.")
+            err = "Can't splicing the url. %s" % params.__str__()
+            raise ReadFromServerException(err)
+
+    def get_task_list(self, version, date, times=4, before=0):
+        """Get crash_id from web API
+
+        Arguments:
+            version {String} -- [The version from JIRA]
+            date {String} -- [Date timestamp.]
+
+        Returns:
+            [List] -- [The crash ids list.]
+        """
+        
         try:
             # TODO: Http status 200 judge logic. to ensure the server still works.
+            _req = self.splicing_ids_url(version=version, date=date)
             task_list = request.urlopen(_req).read()
             # Validation data validity.
 
-            # validation the first character is symbol "[". If it's, that could eval to list. if not, that result is useless.
+            # validation the first character is symbol "[". If it's, that could eval to list. if not, that's useless result.
             if task_list[0] == 91:
                 _task_list = eval(task_list)
                 # remove the id is not startswith 'if'. if=iOS Crash.

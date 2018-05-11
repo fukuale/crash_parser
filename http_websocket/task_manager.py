@@ -1,8 +1,8 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/09/20'
 
-import os
-from multiprocessing import Manager, Pool, Queue
+import os, time
+from multiprocessing import Process, Queue
 
 import zmq
 
@@ -114,44 +114,59 @@ class TaskSchedule(object):
 
 
     # TODO: MULTIPLE PROCESS SUPPORT !
-    def run_parser(self, raw_data=None):
-        """Parser logic.
-
+    def run_parser(self, que, raw_data=None):
+        """Parser server enterice
+        
+        Arguments:
+            que {Multiprocessing.Queue} -- For the message share to parent process.
+        
         Keyword Arguments:
-            raw_data {String} -- [Crahes content.] (default: {None})
-            queue_in {[} -- [description] (default: {None})
-
+            raw_data {String} -- The data wait for parsing. (default: {None})
+        
+        Raises:
+            BreakProcessing -- For the major error to break the process.
+        
         Returns:
-            [type] -- [description]
+            Exception -- Many type exception.
         """
         # Url or crash id in.
-        
+        que.put(os.getpid())
         if raw_data != 'guopengzhang':
             #Url in.
+            af_parse = str()
             if raw_data.startswith('http'):
+                que.put('Http address detected.')
                 _regular_result = regular_common.crash_id(raw_data)
                 if hasattr(_regular_result, 'group'):
                     task_id = _regular_result.group(0)
                 else:
-                    return 'Incomplete Link. Please paste that what link you can get crash information on browser!'
+                    af_parse = 'Incomplete Link. Please paste that what link you can get crash information on browser!'
+                    que.put(af_parse)
+                    que.put('Finish')
             # Crash id in.
             elif raw_data.startswith('if'):
                 task_id = raw_data
-
+                que.put('Crash ID detected.')
                 crash_content = self.get_log.get_crash_log(task_id=task_id)
                 if len(crash_content) > 100:
-                    return self.parser.parsing(raw_data=crash_content,
+                    que.put('Read log compeleted! Ready for parsing.')
+                    af_parse = self.parser.parsing(raw_data=crash_content,
                                             project_list=self.pjname)
                 else:
-                    return "Can\'t read any content from the link. \nCheck it manully !"
+                    af_parse = "Can\'t read any content from the link. \nCheck it manully !"
+                    que.put(af_parse)
+                    que.put('Finish')
             # Crash log in.
             elif ("deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data) or (
                      "Hardware Model" in raw_data and "Version" in raw_data):
-                return self.parser.parsing(raw_data=raw_data,
+                que.put('Crash log detected. Ready for parsing.')
+                af_parse = self.parser.parsing(raw_data=raw_data,
                                             project_list=self.pjname)
             else:
-                return 'Can\'t read environment information from this log content. ' \
-                    '\nCheck it manually !\n\n Do not fool me  _(:3 」∠)_'
+                af_parse = "Can\'t read environment information from this log content. \
+                    \nCheck it manually !\n\n Do not fool me  _(:3 」∠)_"
+            que.put(af_parse)
+            que.put('Finish')
             # Exculd empty page
         # Crash content in.
         elif 'version' in raw_data:
@@ -180,12 +195,12 @@ class TaskSchedule(object):
                                                    product_name=crash_info[-1][0],
                                                    product_list=self.pjname)
                     if abs_dsym:
+                        que.put('start parse.')
                         self.parser.parsing(raw_data=crash_info[0][-1],
                                             product_name=crash_info[-1][0],
                                             version_info=env,
                                             task_id=crash_info[0][0],
                                             project_list=self.pjname.values())
-                # TODO: PROGRESSING
                 self.jira_handler()
             except Exception as e:
                 return e
@@ -194,31 +209,5 @@ class TaskSchedule(object):
         """Call JIRA method.
         """
         _report_gen = ReportGenerator(product_name_list=self.pjname.values())
-        _report_gen.submit_jira(pjname_dict=self.pjname)
+        _report_gen.submit_jira()
         _report_gen.update_jira()
-
-    def start(self):
-        """[summary]
-        """
-        # Start ZMQ socket server
-        context = zmq.Context.instance()
-        socket = context.socket(zmq.REP)
-        socket.connect("tcp://127.0.0.1:7725")
-        # Listen to receive.
-        task_content = socket.recv()
-        # Bytes to String.
-        if hasattr(task_content, "decode"):
-            task_content = task_content.strip().decode()
-        try:
-            result = self.run_parser(task_content)
-            if result:
-                socket.send_string(str(result))
-            else:
-                socket.send_string("Finish")
-        except Exception as parser_err:
-            socket.send_string(parser_err.__str__())        
-
-if __name__ == '__main__':
-    ts = TaskSchedule()
-    while 1:
-        ts.start()

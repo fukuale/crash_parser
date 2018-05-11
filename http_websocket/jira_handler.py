@@ -9,7 +9,7 @@ class JIRAHandler(object):
     """JIRA handler"""
     def __init__(self):
         super(JIRAHandler, self).__init__()
-        self.jira_addr = 'http://10.0.13.12:32774'
+        self.jira_addr = 'http://10.0.21.97:8080'
         self.acc = 'CrashParser'
         self.acc_pwd = 'qwer1234'
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))
@@ -164,12 +164,12 @@ class JIRAHandler(object):
 
         Keyword Arguments:
             version {List} -- [The versions want to update.] (default: {False})
-            summary {String} -- [The summary want to udpate.] (default: {False})
+            summary {String} -- [The summary want to update.] (default: {False})
 
         Returns:
             [] -- [description]
         """
-        # TODO: Merge udpate dict.
+        # TODO: Merge update dict.
         if version and summary:
             self.version(version)
             return issue.update(fields={'versions': self.version(version), 'summary': summary})

@@ -185,11 +185,11 @@
         // Javascript Websocket Client
         function initSocket() {
             if (window.WebSocket) {
-            socket = new WebSocket('ws://192.168.1.101:7724/push_crash');
+            socket = new WebSocket('ws://192.168.1.100:7724/push_crash');
 
             socket.onmessage = function(event) {
                 console.log(event);
-                document.getElementById('result_content').innerHTML ='<pre>' + event.data + '</pre>';
+                document.getElementById('result_content').innerHTML +='<pre>' + event.data + '</pre>';
 
             };
 

@@ -21,7 +21,7 @@ class CrashParser:
     """
     def __init__(self):
         super(CrashParser, self).__init__()
-        self.report_sql = 'ReportInfo.sqlite'
+        # self.report_sql = 'ReportInfo.sqlite'
         self.build_number = str()
         self.version_number = str()
         self.proc = subproc.SubProcessBase()
@@ -247,11 +247,13 @@ class CrashParser:
             sqlite_base.update(conn, cursor,
                                table_name='backtrack_%d' % tableid,
                                reason=','.join(_l_method_call),
-                               condition="where CRASH_ID = '%s'" % crash_id)
+                               condition="where CRASH_ID = '%s'" % crash_id,
+                               end=False)
             # Insert the final crash log after parsing to table report.
             # Used to submit to JIRA.
-            conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
-            sqlite_base.insert(conn_db2, cursor_db2,
+            # conn_db2, cursor_db2 = sqlite_base.sqlite_connect()
+            # conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
+            sqlite_base.insert(conn, cursor,
                                table_name='report',
                                crash_id=crash_id,
                                log='\n'.join(crash_list))
