@@ -363,7 +363,7 @@ class ReportGenerator(SimilarityCompute):
                         LOG.info(' %-20s ]-[ Issue %s need not to update.' % (LOG.get_function_name(), _reasons[-2]))
         ReportGenerator.sum_tables()
 
-    def submit_jira(self):
+    def submit_jira(self, que):
         """Submit issues to JIRA server.
         """
         # Get the reasons need to submit of today.
@@ -373,7 +373,8 @@ class ReportGenerator(SimilarityCompute):
             # conn, cursor = sqlite_base.sqlite_connect(self.report_sql)
             # conn2, cursor2 = sqlite_base.sqlite_connect('Reasons.sqlite')
             # conn3, cursor3 = sqlite_base.sqlite_connect()
-            for _crash_id in _only_crash_id_l:
+            for index, _crash_id in enumerate( _only_crash_id_l):
+                que.put('<h4>\t%d/%d Submitting...</h4>' % (index + 1, _only_crash_id_l.__len__()))
                 # Get the log after parse from report table.
                 _log_finally = sqlite_base.search(conn, cursor,
                                                   end=False,
@@ -393,7 +394,10 @@ class ReportGenerator(SimilarityCompute):
 
                     for _log in _log_l:
                         projname2JIRA = str()
-                        for _product_n in self.product_name_list.values():
+                        print('ishere')
+                        print(self.product_name_list)
+                        for _product_n in self.product_name_list:
+                            print('right')
                             # Special handle for StreamCraft.
                             if _product_n in _log:
                                 projname2JIRA = _product_n

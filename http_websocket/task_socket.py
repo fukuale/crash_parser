@@ -1,13 +1,15 @@
 # Author: Vincent FUNG
 # Create: 2018/05/10
 
-import os, time
-
-import zmq
+import os
 import socket
+import time
 from multiprocessing import Process, Queue
 
+import zmq
+
 from task_manager import TaskSchedule
+
 
 class Task_ZMQ():
     def __init__(self):
@@ -24,7 +26,7 @@ class Task_ZMQ():
         """The idle port detection.
         
         Returns:
-            Integer -- The number of the idle port.
+            [Integer] -- The number of the idle port.
         """
         scan = socket.socket()
         for _port in self.ports:
@@ -37,10 +39,10 @@ class Task_ZMQ():
         """Start socket server.
         
         Arguments:
-            port {[type]} -- [description]
+            port {Integer} -- [The port for socket.]
         
         Returns:
-            [type] -- [description]
+            [zmq.sugar.socket.Socket] -- [zmq.sugar.socket.Socket Instance]
         """
         context = zmq.Context()
         _zmq = context.socket(zmq.REP)
@@ -52,6 +54,11 @@ class Task_ZMQ():
         return 'processing'
 
     def socket_communicate(self, _zmq):
+        """socket communicate logic
+        
+        Arguments:
+            _zmq {zmq.sugar.socket.Socket} -- [zmq.sugar.socket.Socket Instance]
+        """
         while True:
             msg = _zmq.recv()
             msg = msg.decode().strip()
@@ -67,6 +74,7 @@ class Task_ZMQ():
                 while que.empty():
                     time.sleep(0.1)
                 process = que.get()
+                # print(type(process), r'%s' % process)
                 _zmq.send_string(process)
 
 if __name__ == '__main__':
@@ -74,4 +82,3 @@ if __name__ == '__main__':
     _port = tz.port_use_scan()
     _skt = tz.start_socket_server(_port)
     tz.socket_communicate(_skt)
-    

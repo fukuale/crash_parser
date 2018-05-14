@@ -1,20 +1,20 @@
 # Author = 'Vincent FUNG'
 # Create = '2017/09/25'
 
-import os, time
+import os
+import time
 
-import tornado.options
-import tornado.ioloop
 import tornado.httpserver
+import tornado.ioloop
+import tornado.options
 import tornado.web
-
 import zmq
-
 from tornado.options import define, options
 from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
-from task_manager import TaskSchedule
+
 from logger import Logger
+from task_manager import TaskSchedule
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'TornadoServer')
@@ -71,13 +71,13 @@ class ParserHandler(WebSocketHandler):
             if valid:
                 socket.send_string(str(message))
                 childpid = socket.recv()
-                msg = ''.join(['='*20, ('Process %s Started!' % childpid.decode()).center(25, ' '), '='*20])
+                msg = ' '.join(['='*20, ('Process %s Started!' % childpid.decode()).center(25, ' '), '='*20])
                 self.write_message(msg)
                 while valid:
                     socket.send_string('get')
                     data = socket.recv()
                     if data.decode() == 'Finish':
-                        msg = ''.join(['='*20, ('Process %s Finish!' % childpid.decode()).center(25, ' '), '='*20])
+                        msg = ' '.join(['='*20, ('Process %s Finish!' % childpid.decode()).center(25, ' '), '='*20])
                         self.write_message(msg)
                         valid = 0
                     else:

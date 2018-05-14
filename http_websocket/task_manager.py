@@ -83,7 +83,7 @@ class TaskSchedule(object):
                 else:
                     raise ParseBaseInformationException("Can not read version with project(%s)" % proj[0])
 
-    def read_log_from_server(self):
+    def read_log_from_server(self, quee):
         """Getting each crash log from server.
         
         Raises:
@@ -92,6 +92,7 @@ class TaskSchedule(object):
         Yield:
             [Tuple] -- ((Crash id, Crash log), (project name, version information))
         """
+        quee.put('Read log from server.')
         _version_l = self.gen_version_list()
         _no_log_l = list()
         count = 0
@@ -99,7 +100,7 @@ class TaskSchedule(object):
             # Read log with version information.
             count += 1
             try:
-                _c_log = self.get_log.get_task_log(version=version)
+                _c_log = self.get_log.get_task_log(version=version, que=quee)
                 for _log in _c_log:
                     if version[0] == 'GameLive':
                         # Special handle for StreamCraft.
@@ -132,19 +133,19 @@ class TaskSchedule(object):
         # Url or crash id in.
         que.put(os.getpid())
         if raw_data != 'guopengzhang':
-            #Url in.
+
             af_parse = str()
+            # Get Crash id from HTTP address.
             if raw_data.startswith('http'):
                 que.put('Http address detected.')
                 _regular_result = regular_common.crash_id(raw_data)
                 if hasattr(_regular_result, 'group'):
                     task_id = _regular_result.group(0)
                 else:
-                    af_parse = 'Incomplete Link. Please paste that what link you can get crash information on browser!'
-                    que.put(af_parse)
+                    que.put('Incomplete Link. Please paste that what link you can get crash information on browser!')
                     que.put('Finish')
             # Crash id in.
-            elif raw_data.startswith('if'):
+            if raw_data.startswith('if'):
                 task_id = raw_data
                 que.put('Crash ID detected.')
                 crash_content = self.get_log.get_crash_log(task_id=task_id)
@@ -154,8 +155,7 @@ class TaskSchedule(object):
                                             project_list=self.pjname)
                 else:
                     af_parse = "Can\'t read any content from the link. \nCheck it manully !"
-                    que.put(af_parse)
-                    que.put('Finish')
+
             # Crash log in.
             elif ("deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data) or (
                      "Hardware Model" in raw_data and "Version" in raw_data):
@@ -174,11 +174,11 @@ class TaskSchedule(object):
                                        project_list=self.pjname.values())
         # Automatic parsing.
         elif raw_data == 'guopengzhang':
+            que.put('Parsing log from crash collection server start.')
             try:
-                for crash_info in self.read_log_from_server():
+                for crash_info in self.read_log_from_server(que):
                     _project_name = str()
                     env = self.parser.get_ver_info(crash_info[0][-1])
-                    # TODO: CONTINUE FROM HERE.
                     for key, _proj_name in enumerate(self.pjname.values()):
                         _log = str(crash_info[0][-1])
                         # Special handle for StreamCraft.
@@ -195,19 +195,23 @@ class TaskSchedule(object):
                                                    product_name=crash_info[-1][0],
                                                    product_list=self.pjname)
                     if abs_dsym:
-                        que.put('start parse.')
                         self.parser.parsing(raw_data=crash_info[0][-1],
                                             product_name=crash_info[-1][0],
                                             version_info=env,
                                             task_id=crash_info[0][0],
                                             project_list=self.pjname.values())
-                self.jira_handler()
+                self.jira_handler(que)
+                que.put('Finish')
             except Exception as e:
-                return e
+                que.put(e.__str__())
+                que.put('Finish')
 
-    def jira_handler(self):
+    def jira_handler(self, que):
         """Call JIRA method.
         """
+        que.put('Generation the JIRA ticket data...')
         _report_gen = ReportGenerator(product_name_list=self.pjname.values())
-        _report_gen.submit_jira()
+        que.put('Ready to submit to JIRA.')
+        _report_gen.submit_jira(que)
+        que.put('Updating the existing issues...')
         _report_gen.update_jira()

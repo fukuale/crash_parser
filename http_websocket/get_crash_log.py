@@ -224,7 +224,7 @@ class GetCrashInfoFromServer(object):
                     LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), args['task_id']))
                     return crash_content
  
-    def get_task_log(self, version, date=YESTERDAY):
+    def get_task_log(self, version, que, date=YESTERDAY):
         """Generation each log via web API from analysis server.
         
         Arguments:
@@ -241,12 +241,16 @@ class GetCrashInfoFromServer(object):
             [Tuple] -- (task_id, crash_log)
         """
         if isinstance(version, tuple):
+            print('get_task_log')
             # Get crash ids from server
             task_ids = self.get_task_list(version=version, date=date)
             if not task_ids:
+                que.put('Nothing has read.')
                 raise ReadFromServerException('Getting nothing from server.')
             else:
-                for task_id in task_ids:
+                que.put('Crash from %s' % version[0])
+                for index, task_id in  enumerate(task_ids):
+                    que.put('<h4>\t%d/%d Parsing...</h4>' % (index + 1, task_ids.__len__()))
                     _crash_log = self.get_crash_log(task_id=task_id, projectname=version[0])
                     yield task_id, _crash_log
         else:
