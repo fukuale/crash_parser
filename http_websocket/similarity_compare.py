@@ -4,10 +4,12 @@
 import sqlite_base
 
 
+
 class SimilarityCompute(object):
     """Compute two data similarity to return a precentage of it.
     """
-    def __init__(self, versioninfo, crashid):
+    def __init__(self, project,  versioninfo, crashid):
+        self.project = project
         self.ver_info = versioninfo
         self.crash_id = crashid
 
@@ -37,7 +39,7 @@ class SimilarityCompute(object):
             be_compare {String} -- [Other one data need to compute.]
 
         Returns:
-            [Float] -- [Similarity percentage.]
+              [Float] -- [Similarity percentage.]
         """
         _matched = ''
         _re_compare = [_matched for i in compare if i in be_compare]
@@ -78,12 +80,12 @@ class SimilarityCompute(object):
 
     def apple_locate_similarity(self, datain):
         """Compute similarity of apple located reason.
-
+        
         Arguments:
-            datain {[type]} -- [description]
-
+            datain {No limited} -- The Apple Crash Reason.
+        
         Returns:
-            [type] -- [description]
+            [Integer] -- The table statistics which row saved the crash log.
         """
         # Parameters
         _first_match = list()
@@ -98,18 +100,20 @@ class SimilarityCompute(object):
         for chars in alpha_str:
             # 6, Lenght of the keyword. Reduce the probability of duplication.
             if chars.__len__() > 6:
+                # Getting the exists Apple Crash Reason which like this.
                 _first_match = sqlite_base.search(conn, cursor,
                                                   end=False,
                                                   columns='ROWID, FREQUENCY, CONTENT',
                                                   table_name='statistics',
                                                   condition="where CONTENT LIKE \'%%%s%%\'" % chars)
                 break
-        # Insert apple located reason if not matched.
+        # Insert Apple Crash Reason if not matched or does not existing.
         if not _first_match:
             _row_id = sqlite_base.insert(conn, cursor,
                                          end=False,
                                          table_name='statistics',
                                          frequency=1,
+                                         project=self.project,
                                          content=datain,
                                          fv=self.ver_info,
                                          lv=self.ver_info)
@@ -119,13 +123,14 @@ class SimilarityCompute(object):
                                    end=False,
                                    table_name='backtrack_%d' % _row_id,
                                    crash_id=self.crash_id,
+                                   project=self.project,
                                    version=self.ver_info)
 
         # Similarity compute logic.
         if _first_match:
             for _item in _first_match:
 
-                # Clean string.
+                # Remove all mutable string/characters/Symbols.
                 _sql_only_str = self.mutable_remove(_item[-1])
 
                 # Compare the percentage of similarity. item[0]=ROWID, item[1]=CONTENT.
@@ -136,8 +141,9 @@ class SimilarityCompute(object):
             _percent_of = sorted(_percent_of, key=lambda x: (x[-1]))
 
         if _percent_of.__len__() != 0:
-            # number 1 means 100% matched.
+            # Get the last one(The biggest percentage number)
             if _percent_of[-1][-1] == 1:
+                # If percentage = 1, That means those two reasons is the same.
                 _row_id = sqlite_base.update(conn, cursor,
                                              end=False,
                                              table_name='statistics',
@@ -146,15 +152,17 @@ class SimilarityCompute(object):
                                              condition='where rowid = %d' % _percent_of[-1][0])
                 sqlite_base.insert(conn, cursor,
                                    end=False,
-                                   # table statistics rowid == backtrack table id.
                                    table_name='backtrack_%d' % _percent_of[-1][0],
                                    crash_id=self.crash_id,
+                                   project=self.project,
                                    version=self.ver_info)
             else:
+                # Not the same crash. Insert new one.
                 _row_id = sqlite_base.insert(conn, cursor,
                                              end=False,
                                              table_name='statistics',
                                              frequency=1,
+                                             project=self.project,
                                              content=datain,
                                              fv=self.ver_info,
                                              lv=self.ver_info)
@@ -163,6 +171,7 @@ class SimilarityCompute(object):
                                        end=False,
                                        table_name='backtrack_%d' % _row_id,
                                        crash_id=self.crash_id,
+                                       project=self.project,
                                        version=self.ver_info)
         if conn:
             if cursor:

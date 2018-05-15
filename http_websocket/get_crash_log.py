@@ -241,7 +241,6 @@ class GetCrashInfoFromServer(object):
             [Tuple] -- (task_id, crash_log)
         """
         if isinstance(version, tuple):
-            print('get_task_log')
             # Get crash ids from server
             task_ids = self.get_task_list(version=version, date=date)
             if not task_ids:

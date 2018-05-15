@@ -75,6 +75,7 @@ def create_base_table(conn, cursor, end=True):
     """
     cursor.execute('''CREATE TABLE statistics
         (FREQUENCY INT NOT NULL,
+        PROJECT MESSAGE_TEXT,
         CONTENT MESSAGE_TEXT NOT NULL,
         FIRST_VERSION MESSAGE_TEXT NOT NULL,
         LAST_VERSION MESSAGE_TEXT ,
@@ -98,6 +99,7 @@ def create_backtrack_table(conn, cursor, end=True, **kwargs):
     """
     cursor.execute('CREATE TABLE backtrack_%s( \
             CRASH_ID MESSAGE_TEXT, \
+            PROJECT MESSAGE_TEXT,\
             REASON_ID MESSAGE_TEXT, \
             REASON MESSAGE_TEXT, \
             VERSION MESSAGE_TEXT, \
@@ -138,6 +140,7 @@ def create_reasons_table(conn, cursor, end=True):
     cursor.execute('''CREATE TABLE reasons(
         FIXED INT DEFAULT 0,
         JIRAID MESSAGE_TEXT,
+        PROJECT MESSAGE_TEXT,
         FREQUENCY INT DEFAULT 1,
         REASON MESSAGE_TEXT,
         INSERT_TIME MESSAGE_TEXT NOT NULL,
@@ -221,24 +224,24 @@ def insert(conn, cursor, end=True, **kwargs):
     if create_tables(
             conn=conn, cursor=cursor, tablename=kwargs['table_name'], create=True, end=False):
         if kwargs['table_name'] == 'statistics':
-            _inse_cmd_format = "INSERT INTO statistics(FREQUENCY, CONTENT, FIRST_VERSION, LAST_VERSION, INSERT_TIME, LAST_UPDATE) values(?,?,?,?,?,?)"
+            _inse_cmd_format = "INSERT INTO statistics(FREQUENCY, PROJECT, CONTENT, FIRST_VERSION, LAST_VERSION, INSERT_TIME, LAST_UPDATE) values(?,?,?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
-                           (kwargs['frequency'], kwargs['content'], kwargs['fv'], kwargs['lv'], get_today_timestamp(),
+                           (kwargs['frequency'], kwargs['project'],kwargs['content'], kwargs['fv'], kwargs['lv'], get_today_timestamp(),
                             get_today_timestamp()))
 
         elif kwargs['table_name'].startswith('backtrack_'):
-            _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, VERSION,INSERT_TIME) values(?,?,?)" % kwargs[
+            _inse_cmd_format_ = "INSERT INTO %s(CRASH_ID, PROJECT, VERSION, INSERT_TIME) values(?,?,?,?)" % kwargs[
                 'table_name']
             cursor.execute(
-                _inse_cmd_format_, (kwargs['crash_id'], kwargs['version'], get_today_timestamp()))
+                _inse_cmd_format_, (kwargs['crash_id'], kwargs['project'], kwargs['version'], get_today_timestamp()))
         elif kwargs['table_name'] == 'report':
-            _inse_cmd_format = "INSERT INTO report(CRASH_ID, LOG) values(?,?)"
+            _inse_cmd_format = "INSERT INTO report(CRASH_ID, PROJECT, LOG) values(?,?,?)"
             cursor.execute(_inse_cmd_format,
-                           (kwargs['crash_id'], kwargs['log']))
+                           (kwargs['crash_id'], kwargs['project'], kwargs['log']))
         elif kwargs['table_name'] == 'reasons':
-            _inse_cmd_format = "INSERT INTO reasons(JIRAID, FREQUENCY, REASON, INSERT_TIME) VALUES(?,?,?,?)"
+            _inse_cmd_format = "INSERT INTO reasons(JIRAID, PROJECT, FREQUENCY, REASON, INSERT_TIME) VALUES(?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
-                           (kwargs['jiraid'], kwargs['frequency'], kwargs['reason'], get_today_timestamp()))
+                           (kwargs['jiraid'], kwargs['project'], kwargs['frequency'], kwargs['reason'], get_today_timestamp()))
         elif kwargs['table_name'] == 'unmatch':
             _inse_cmd_format = "INSERT INTO unmatch(CRASH_ID, INSERT_TIME) VALUES(?,?)"
             cursor.execute(_inse_cmd_format,

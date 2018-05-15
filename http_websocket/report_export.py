@@ -24,11 +24,9 @@ class ReportGenerator(SimilarityCompute):
     """Filter all the issue need to commit/update.
     """
     def __init__(self, product_name_list):
-        SimilarityCompute.__init__(self, 0, 0)
+        SimilarityCompute.__init__(self, 0, 0, 0)
         self.product_name_list = product_name_list
         self.conf_dir = os.path.join(os.path.expanduser('~'), 'CrashParser', 'database')
-        # self.report_sql = os.path.join(self.conf_dir, 'ReportInfo.sqlite')
-        # self.statistic_sql = os.path.join(self.conf_dir, 'CrashCount.sqlite')
         self.jirahandler = JIRAHandler()
 
     @staticmethod
@@ -178,13 +176,16 @@ class ReportGenerator(SimilarityCompute):
             _step {Integer} -- [How many data want to get per time.] (default: {30})
             _start {Integer} -- [Startswith data size index.] (default: {1})
         """
+        # Get the table reasons rows number.
         _rows_count = sqlite_base.search(conn, cursor,
                                          end=False,
                                          columns='count(REASON)',
                                          table_name='reasons',
                                          condition='')
         if _rows_count:
+            # Limit the search result data size on max 30.
             for ind in ReportGenerator.range_len_gen(_start, _rows_count[0][0], _step):
+                # Uhmmmm.. I forgot why i write the following line...
                 for i in range(_start, ind[0] + 1):
                     # Search part of data. Limit memory usage.
                     if (ind[0] - _start) > 1:
@@ -214,8 +215,6 @@ class ReportGenerator(SimilarityCompute):
             [List] -- [The reasons need to submit to JIRA server.]
         """
         conn, cursor = sqlite_base.sqlite_connect()
-        # conn, cursor = sqlite_base.sqlite_connect('Reasons.sqlite')
-        # conn2, cursor2 = sqlite_base.sqlite_connect()
         # Read today crashes reasons.
         _td_reasons = self.get_specific_range_crashes()
         # Remove duplicate data.
@@ -260,9 +259,6 @@ class ReportGenerator(SimilarityCompute):
         if conn:
             cursor.close()
             conn.close()
-        # if conn2:
-        #     cursor2.close()
-        #     conn2.close()
         if _uniqueness_l.__len__() != 0:
             # This list is the new crash relative to old data
             return _uniqueness_l
@@ -370,10 +366,7 @@ class ReportGenerator(SimilarityCompute):
         _only_crash_id_l = self.match_reason()
         if _only_crash_id_l.__len__() > 0:
             conn, cursor = sqlite_base.sqlite_connect()
-            # conn, cursor = sqlite_base.sqlite_connect(self.report_sql)
-            # conn2, cursor2 = sqlite_base.sqlite_connect('Reasons.sqlite')
-            # conn3, cursor3 = sqlite_base.sqlite_connect()
-            for index, _crash_id in enumerate( _only_crash_id_l):
+            for index, _crash_id in enumerate(_only_crash_id_l):
                 que.put('<h4>\t%d/%d Submitting...</h4>' % (index + 1, _only_crash_id_l.__len__()))
                 # Get the log after parse from report table.
                 _log_finally = sqlite_base.search(conn, cursor,
@@ -394,10 +387,7 @@ class ReportGenerator(SimilarityCompute):
 
                     for _log in _log_l:
                         projname2JIRA = str()
-                        print('ishere')
-                        print(self.product_name_list)
                         for _product_n in self.product_name_list:
-                            print('right')
                             # Special handle for StreamCraft.
                             if _product_n in _log:
                                 projname2JIRA = _product_n
@@ -435,6 +425,7 @@ class ReportGenerator(SimilarityCompute):
                                                         table_name='reasons',
                                                         reason=_crash_id[-1],
                                                         frequency=_crash_id[2],
+                                                        project=self.project,
                                                         jiraid=_jira_id.key)
                         else:
                             LOG.cri(' %-20s ]-[ Submit to JIRA error: %s .' % (LOG.get_function_name(), _jira_id.key))
@@ -481,11 +472,3 @@ class ReportGenerator(SimilarityCompute):
 
         _reason = cursor.execute("SELECT SUM(FREQUENCY) FROM reasons").fetchall()[0][0]
         LOG.info(' %-20s ]-[ BACKTRACK ALL ITEM: %s , REASONS ALL ITEM: %s' % (LOG.get_function_name(), _num, _reason))
-
-
-if __name__ == '__main__':
-    sc = ReportGenerator(product_name_list={
-            'GAMEIM': 'WeGamers',
-            'WELIVE': 'GameLive'
-            })
-    sc.submit_jira()

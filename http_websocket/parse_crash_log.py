@@ -163,24 +163,22 @@ class CrashParser:
                     return os.path.join(abs_dir, _file)
 
     def atos_run(self, dSYM_file, tableid, crash_id, raw_data, product_name):
-        """ATOS calling.
-
+        """ATOS command entrance.
+        
         Arguments:
-            dSYM_file {String} -- [The dSYM file absolute folder address.]
-            tableid {} -- []
-            crash_id {[type]} -- [description]
-            raw_data {[type]} -- [description]
-            product_name {[type]} -- [description]
-
+            dSYM_file {String} -- The DSYM file absolut dir.
+            tableid {Integer} -- The crash log location in the table statistics.
+            crash_id {String} -- The crash log ID.
+            raw_data {String} -- The crash log content.
+            product_name {String} -- The product name of the crash log.
+        
         Raises:
-            ParseBaseInformationException -- [description]
-            ParserException -- [description]
-            ParserException -- [description]
-        """
-        """
-        Run all method to parsing crash info to get parameters to run atos parsing log.
-        :param dSYM_file: dSYM file absolute folder address.
-        :return: String object
+            ParseBaseInformationException -- Exception.
+            ParserException -- Exception.
+            ParserException -- Exception.
+        
+        Returns:
+            String -- The truthly crash reason after atos parsing.
         """
         crash_list = list()
         if isinstance(raw_data, bytes):
@@ -202,61 +200,65 @@ class CrashParser:
         stacktrace_list, cpu_arm_ = self.get_stacktrack_list(crash_list=crash_list, project_name=product_name)
 
         if not stacktrace_list:
+            # Useless crash log.
             conn, cursor = sqlite_base.sqlite_connect()
             sqlite_base.insert(conn, cursor,
                                table_name='unmatch',
                                crash_id=crash_id)
-            raise ParserException('Can not detect product name from stacktrace content, this is a invalid log.')
-        # enumerate wait to parsing data
+            raise ParserException('Can not detect product name from stacktrace content, this is an invalid log.')
+
         for _index, _value in enumerate(stacktrace_list):
 
             # Pick memory address
-            line_id = _value[0]
-            stacktrac_id = _value[1]
-            produce_name_raw = _value[2]
-            memory_addr = _value[3]
-            base_addr = _value[4]
-            offset = _value[-1]
-            # Parsing stack address to get the truth crash method.
-            # Splicing atos command.
+            _line_id = _value[0]
+            _stacktrac_id = _value[1]
+            _produce_name_raw = _value[2]
+            _memory_addr = _value[3]
+            _base_addr = _value[4]
+            _offset = _value[-1]
+
+            # Splicing ATOS command.
             atos_cmd = ' '.join([
                 atos, arch, cpu_arm_, op, _app_symbol_file,
-                _l, base_addr, memory_addr])
+                _l, _base_addr, _memory_addr])
+
             # Call subprocess to run atos command.
-            parse_result = self.proc.sub_procs_run(cmd=atos_cmd)
-            if parse_result:
-                result = parse_result.stdout.decode().replace('\n', '')
-                # Append result to result list.
-                _l_method_call.append(result)
-            else:
-                raise ParserException('Atos error')
+            try:
+                parse_result = self.proc.sub_procs_run(cmd=atos_cmd)
+                if parse_result:
+                    result = parse_result.stdout.decode().replace('\n', '')
+                    # Append result to result list.
+                    _l_method_call.append(result)
+            except Exception as atos_err:
+                raise ParserException(atos_err.__str__())
+
             # Splicing data what need to replace.
             replace_data = '   '.join([
-                stacktrac_id, produce_name_raw, memory_addr, offset, result])
-            # Replace data, and the tabs add or not.
-            if '\t' in crash_list[line_id]:
-                crash_list[line_id] = '\t' + replace_data
+                _stacktrac_id, _produce_name_raw, _memory_addr, _offset, result])
+            # Replace raw data, and the tabs add or not.
+            if '\t' in crash_list[_line_id]:
+                crash_list[_line_id] = '\t' + replace_data
             else:
-                crash_list[line_id] = replace_data
-        # Insert to sql the crash information.
+                crash_list[_line_id] = replace_data
+
+        # Insert the crash information to sql.
         if tableid:
             conn, cursor = sqlite_base.sqlite_connect()
-            # Insert crash method call.
-            # Used to compute frenquency of appearing.
-            # FIXME: INSERT DUPLICATE DATA TO BACKTRACK TABLES.
+            # Insert the truthly crash reasons.
+            # For compute frenquency of appearing.
             sqlite_base.update(conn, cursor,
                                table_name='backtrack_%d' % tableid,
                                reason=','.join(_l_method_call),
                                condition="where CRASH_ID = '%s'" % crash_id,
                                end=False)
-            # Insert the final crash log after parsing to table report.
-            # Used to submit to JIRA.
-            # conn_db2, cursor_db2 = sqlite_base.sqlite_connect()
-            # conn_db2, cursor_db2 = sqlite_base.sqlite_connect(self.report_sql)
+            # Insert the final crash log to table report.
+            # Use for submit to JIRA.
             sqlite_base.insert(conn, cursor,
                                table_name='report',
                                crash_id=crash_id,
+                               project=product_name,
                                log='\n'.join(crash_list))
+        # List to String.
         return '\n'.join(crash_list)
 
     def parsing(self, raw_data, project_list, version_info=0, product_name=0, task_id=0):
@@ -279,7 +281,7 @@ class CrashParser:
         """
 
         _row_id = int()
-        # Set value to _product_name when product name was detected.
+        # Set value to _product_name when product name has detected.
         if not product_name:
             _raw_data = str()
             if isinstance(raw_data, bytes):
@@ -289,11 +291,7 @@ class CrashParser:
             for _name in project_list.values():
                 if _name.upper() in _raw_data.upper() or _name.upper() in _raw_data.upper():
                     product_name = _name
-                    # For develop version.
-                # if '_HOC' in _raw_data:
-                #     product_name += '_HOC'
                     break
-                # break
             if not product_name:
                 raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
 
@@ -313,7 +311,7 @@ class CrashParser:
 
         # Compute similarity with old data.
         if task_id:
-            _sc = SimilarityCompute(versioninfo=version_info[0], crashid=task_id)
+            _sc = SimilarityCompute(project=product_name, versioninfo=version_info[0], crashid=task_id)
             _row_id = _sc.apple_locate_similarity(_reason)
 
         # Parse Stacktrace information.
