@@ -70,7 +70,7 @@ class SimilarityCompute(object):
             [List] -- [List with immutable items.]
         """
         _after = str()
-        objectin = objectin.translate({ord(c): ' ' for c in '<>();!,.:+-[]_"'})
+        objectin = objectin.translate({ord(c): ' ' for c in '<>();!,.:+-[]_"\''})
         _hex_rm = self.hex_remove(objectin)
         _re_str = ' '.join(_hex_rm)
         for i in _re_str:
@@ -105,7 +105,7 @@ class SimilarityCompute(object):
                                                   end=False,
                                                   columns='ROWID, FREQUENCY, CONTENT',
                                                   table_name='statistics',
-                                                  condition="where CONTENT LIKE \'%%%s%%\'" % chars)
+                                                  condition="where PROJECT = \'%s\' and CONTENT LIKE \'%%%s%%\'" % (self.project, chars))
                 break
         # Insert Apple Crash Reason if not matched or does not existing.
         if not _first_match:

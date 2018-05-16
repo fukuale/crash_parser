@@ -17,22 +17,39 @@ LOG = Logger(LOG_FILE, 'ParseCrashLog')
 
 
 class CrashParser:
-    """Parsing crash log.
+    """Crash parsing class.
+    
+    Raises:
+        ParserException -- Could not detected version information in this content.
+        ParseBaseInformationException -- raw_data type unsupported!
+        ParserException -- Can not detect product name from stacktrace content, this is an invalid log.
+        ParserException -- The exception with ATOS command.
+        ParseBaseInformationException -- Can't detect any product name from the crash log!
+    
+    Returns:
+        Tuple -- 0)The maxmum line number of trackstack. 1)The start line.
+        List  -- 0)version_number, 1)build_number, 2)app_use_for
+        String -- Apple located reason.
+        Tuple -- 0) Stacktrack log list. 1) CPU arch
+        String -- The absolutely directory of the DSYM file.
+        String -- The truthly crash reason after atos parsing.
+        String -- The crash log after parse.
     """
     def __init__(self):
         super(CrashParser, self).__init__()
-        # self.report_sql = 'ReportInfo.sqlite'
         self.build_number = str()
         self.version_number = str()
         self.proc = subproc.SubProcessBase()
         self.dsym = DownloadDSYM()
 
     def detect_maxtrac(self, crash_list):
-        """
-        Detect how much lines of the Stacktrace info.
-        :return: Tuple object.
-            1) max_line_number
-            2) _id (Which line included the max line number, eg: -1, It is the negative index of list.)
+        """Detect how much lines of the Stacktrace info.
+        
+        Arguments:
+            crash_list {List} -- The list type of crash data.
+        
+        Returns:
+            Tuple -- 1) max_line_number, 2) _id (Which line included the max line number, eg: -1, It is the negative index of list.)
         """
         _id = -1
         _pre_fix = int()
@@ -60,13 +77,13 @@ class CrashParser:
         """Parsing version information from crash log
 
         Arguments:
-            data_in {No limit} -- [The crash log]
+            data_in {No limit} -- The crash log
 
         Raises:
-            ParserException -- [Could not detected version information in this content]
+            ParserException -- Could not detected version information in this content
 
         Returns:
-            [List] -- [version_number, build_number, app_use_for]
+            List -- 0)version_number, 1)build_number, 2)app_use_for
         """
         # Change data type to list object.
         content = list()
@@ -95,10 +112,10 @@ class CrashParser:
         """Get apple located reason from log.
 
         Arguments:
-            raw_data {String, Bytes} -- [The crashes content.]
+            raw_data {String, Bytes} -- The crashes content.
 
         Returns:
-            [String] -- [Apple located reason.]
+            String -- Apple located reason.
         """
         content = list()
         if isinstance(raw_data, str):
@@ -114,17 +131,11 @@ class CrashParser:
         """Filter all the Stacktrack log from log content.
 
         Arguments:
-            crash_list {List} -- [List type log.]
-            pro_name {String} -- [The name of project.]
+            crash_list {List} -- List type log.
+            pro_name {String} -- The name of project.
 
         Returns:
-            [Tuple] -- [0) Stacktrack log list. 1) CPU arch]
-        """
-        """
-        Get each line included product_name from Stacktrace content.
-        :return: Tuple object
-            1)List object. The stacktrace_list
-            2)String object. CPU Arch type.
+            Tuple -- 0) Stacktrack log list. 1) CPU arch
         """
         nstacktrace_max, _id = self.detect_maxtrac(crash_list=crash_list)
         stacktrace_list = list()
@@ -156,26 +167,38 @@ class CrashParser:
             return 0, 0
 
     def get_dsym_file(self, parent_dir, product_name):
-        for abs_dir, chil_dir, files in os.walk(parent_dir):
-            for _file in files:
+        """Get the DSYM absolutely directory
+        
+        Arguments:
+            parent_dir {String} -- The parent directory to save the DSYM file.
+            product_name {String} -- The product name to locate.
+        
+        Returns:
+            String -- The absolutely directory of the DSYM file.
+        """
+        for dir_items in os.walk(parent_dir):
+            # dir_items[0] = absolutely parent directory.
+            # dir_items[1] = the child directory in the current directory.
+            # dir_items[2] = the files list of the current directory.
+            for _file in dir_items[-1]:
                 # Special handle for StreamCraft.
                 if product_name in _file or 'StreamCraft' in _file:
-                    return os.path.join(abs_dir, _file)
+                    return os.path.join(dir_items[0], _file)
 
-    def atos_run(self, dSYM_file, tableid, crash_id, raw_data, product_name):
+    def atos_run(self, dSYM_file, tableid, version, crash_id, raw_data, product_name):
         """ATOS command entrance.
         
         Arguments:
-            dSYM_file {String} -- The DSYM file absolut dir.
+            dSYM_file {String} -- The DSYM file absolute dir.
             tableid {Integer} -- The crash log location in the table statistics.
             crash_id {String} -- The crash log ID.
             raw_data {String} -- The crash log content.
             product_name {String} -- The product name of the crash log.
         
         Raises:
-            ParseBaseInformationException -- Exception.
-            ParserException -- Exception.
-            ParserException -- Exception.
+            ParseBaseInformationException -- raw_data type unsupported!
+            ParserException -- Can not detect product name from stacktrace content, this is an invalid log.
+            ParserException -- The exception with ATOS command.
         
         Returns:
             String -- The truthly crash reason after atos parsing.
@@ -257,6 +280,8 @@ class CrashParser:
                                table_name='report',
                                crash_id=crash_id,
                                project=product_name,
+                               version=version,
+                               crash_call=_l_method_call[-1],
                                log='\n'.join(crash_list))
         # List to String.
         return '\n'.join(crash_list)
@@ -274,10 +299,10 @@ class CrashParser:
             task_id {String} -- [This is the id of this log when it from web.] (default: {0})
 
         Raises:
-            ParseBaseInformationException -- [Can't detect any product name from the crash log!]
+            ParseBaseInformationException -- Can't detect any product name from the crash log!
 
         Returns:
-            [String] -- [The crash log after parse.]
+            String -- The crash log after parse.
         """
 
         _row_id = int()
@@ -316,6 +341,7 @@ class CrashParser:
 
         # Parse Stacktrace information.
         return self.atos_run(dSYM_file=abs_dsym,
+                             version=version_info[0],
                              product_name=product_name,
                              raw_data=raw_data,
                              tableid=_row_id,

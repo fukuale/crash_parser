@@ -133,38 +133,41 @@ class TaskSchedule(object):
         # Url or crash id in.
         que.put(os.getpid())
         if raw_data != 'guopengzhang':
-
             af_parse = str()
-            # Get Crash id from HTTP address.
-            if raw_data.startswith('http'):
-                que.put('Http address detected.')
-                _regular_result = regular_common.crash_id(raw_data)
-                if hasattr(_regular_result, 'group'):
-                    task_id = _regular_result.group(0)
-                else:
-                    que.put('Incomplete Link. Please paste that what link you can get crash information on browser!')
-                    que.put('Finish')
-            # Crash id in.
-            if raw_data.startswith('if'):
-                task_id = raw_data
-                que.put('Crash ID detected.')
-                crash_content = self.get_log.get_crash_log(task_id=task_id)
-                if len(crash_content) > 100:
-                    que.put('Read log compeleted! Ready for parsing.')
-                    af_parse = self.parser.parsing(raw_data=crash_content,
-                                            project_list=self.pjname)
-                else:
-                    af_parse = "Can\'t read any content from the link. \nCheck it manully !"
+            try:
+                # Get Crash id from HTTP address.
+                if raw_data.startswith('http'):
+                    que.put('Http address detected.')
+                    _regular_result = regular_common.crash_id(raw_data)
+                    if hasattr(_regular_result, 'group'):
+                        task_id = _regular_result.group(0)
+                    else:
+                        que.put('Incomplete Link. Please paste that what link you can get crash information on browser!')
+                        que.put('Finish')
+                # Crash id in.
+                if raw_data.startswith('if'):
+                    task_id = raw_data
+                    que.put('Crash ID detected.')
+                    crash_content = self.get_log.get_crash_log(task_id=task_id)
+                    if len(crash_content) > 100:
+                        que.put('Read log compeleted! Ready for parsing.')
+                        af_parse = self.parser.parsing(raw_data=crash_content,
+                                                project_list=self.pjname)
+                    else:
+                        af_parse = "Can\'t read any content from the link. \nCheck it manully !"
 
-            # Crash log in.
-            elif ("deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data) or (
-                     "Hardware Model" in raw_data and "Version" in raw_data):
-                que.put('Crash log detected. Ready for parsing.')
-                af_parse = self.parser.parsing(raw_data=raw_data,
-                                            project_list=self.pjname)
-            else:
-                af_parse = "Can\'t read environment information from this log content. \
-                    \nCheck it manually !\n\n Do not fool me  _(:3 」∠)_"
+                # Crash log in.
+                elif ("deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data) or (
+                        "Hardware Model" in raw_data and "Version" in raw_data):
+                    que.put('Crash log detected. Ready for parsing.')
+                    af_parse = self.parser.parsing(raw_data=raw_data,
+                                                project_list=self.pjname)
+                else:
+                    af_parse = "Can\'t read environment information from this log content. \
+                        \nCheck it manually !\n\n Do not fool me  _(:3 」∠)_"
+            except Exception as parse_err:
+                que.put(parse_err.__str__())
+                que.put('Finish')
             que.put(af_parse)
             que.put('Finish')
             # Exculd empty page
@@ -214,4 +217,4 @@ class TaskSchedule(object):
         que.put('Ready to submit to JIRA.')
         _report_gen.submit_jira(que)
         que.put('Updating the existing issues...')
-        _report_gen.update_jira()
+        _report_gen.update_jira(que)

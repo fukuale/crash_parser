@@ -74,7 +74,6 @@ class Task_ZMQ():
                 while que.empty():
                     time.sleep(0.1)
                 process = que.get()
-                # print(type(process), r'%s' % process)
                 _zmq.send_string(process)
 
 if __name__ == '__main__':

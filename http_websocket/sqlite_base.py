@@ -121,7 +121,7 @@ def create_report_table(conn, cursor, end=True):
         end {Boolean} -- [Close the sqlite connection when this value set to True.] (default: {True})
     """
     cursor.execute(
-        'CREATE TABLE report(CRASH_ID MESSAGE_TEXT, PROJECT MESSAGE_TEXT, LOG MESSAGE_TEXT);')
+        'CREATE TABLE report(CRASH_ID MESSAGE_TEXT, PROJECT MESSAGE_TEXT, VERSION MESSAGE_TEXT, CALL MESSAGE_TEXT, LOG MESSAGE_TEXT);')
     if end:
         cursor.close()
         conn.close()
@@ -235,9 +235,9 @@ def insert(conn, cursor, end=True, **kwargs):
             cursor.execute(
                 _inse_cmd_format_, (kwargs['crash_id'], kwargs['project'], kwargs['version'], get_today_timestamp()))
         elif kwargs['table_name'] == 'report':
-            _inse_cmd_format = "INSERT INTO report(CRASH_ID, PROJECT, LOG) values(?,?,?)"
+            _inse_cmd_format = "INSERT INTO report(CRASH_ID, PROJECT, VERSION, CALL, LOG) values(?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
-                           (kwargs['crash_id'], kwargs['project'], kwargs['log']))
+                           (kwargs['crash_id'], kwargs['project'], kwargs['version'], kwargs['crash_call'], kwargs['log']))
         elif kwargs['table_name'] == 'reasons':
             _inse_cmd_format = "INSERT INTO reasons(JIRAID, PROJECT, FREQUENCY, REASON, INSERT_TIME) VALUES(?,?,?,?,?)"
             cursor.execute(_inse_cmd_format,
