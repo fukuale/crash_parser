@@ -33,6 +33,32 @@
             /*-moz-user-select: none;*/
         }
 
+        .help-content {
+            position: absolute;
+            background-color: #0e83cd;
+            color: #f4f6f8;
+            font-family: Monaco, "Microsoft YaHei UI", "WenQuanYi Micro Hei", sans-serif;
+            font-size: 11px;
+            margin-left: -8px;
+            margin-top: -8px;
+            width: 100%
+        }
+
+        .help-content li{
+            margin-top: 3px;
+        }
+
+        .help-content li{
+            text-align: left;
+        }
+
+        .header h1{
+            display: inline-flex;
+        }
+
+        .header div {
+            float: right;
+        }
 
         .submit_view {
             color: #0e83cd;
@@ -250,6 +276,14 @@
             document.getElementById('result_content').innerHTML = "";
             document.getElementById('crash_log').value = "";
         }
+
+        function view_help(id) {
+            document.getElementById(id).style.display="";
+        }
+
+        function hide_help(id) {
+            document.getElementById(id).style.display="none";
+        }
     </script>
     <body>
         <!--[if lte IE 9]>
@@ -257,9 +291,31 @@
         <![endif]-->
 
         <div id="content_area">
-            <H1>Crash Parser Online</H1>
+            <div class="header" id="header">
+                <H1>Crash Parser Online</H1>
+                <div class="help" id="overHelp" onmouseover="view_help('helpContent')" onmouseout="hide_help('helpContent')"><H6>? HELP</H6></div>
+                
+            </div>
             <form method="post" action="/push_crash" onsubmit="return false;">
             <div class="submit_view">
+                <div class="help-content" id="helpContent" style="display: none">
+                        <ul>
+                            <p>目前能支持的基本都支持了，有以下四类数据</p>
+                            <li>以if开头的崩溃ID（从后台获取，选取崩溃ID复制）</li>
+                            <li>以http开头的具体一个完整崩溃日志地址（从后台获取，右键复制崩溃ID的链接）</li>
+                            <li>正式版的崩溃日志内容</li>
+                            <li>开发版的崩溃日志内容（日志开头的JSON串 "{"app_name"...}" 请在提交前移除，不支持，代码内懒得做这个逻辑）</li>
+                            
+                            <p>By the way. 提交的日志尾行不要留空，可能会有问题，没有特殊处理。</p>
+                            
+                            <p>
+                                One more thing. <b>如果打开本页很久或提交没有响应，证明有人正在解析日志中</b>，目前比较粗暴实现解析进度，进程会被占用。
+                                <b>提交以上四类数据的时候不要关闭页面，你的数据会丢失！！！</b>
+                            </p>
+
+                            <p>Uhmmm.. 解析进度是为了提交JIRA用以进度展示的，以上四类数据挺快的不久就不怎么需要了。</p>
+                        </ul>
+                </div>
                 <textarea title="crash_log_to_submit" name="crash_log" id="crash_log" spellcheck="false" ></textarea>
             </div>
             <div class="result_view">
