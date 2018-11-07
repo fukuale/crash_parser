@@ -11,11 +11,19 @@ import time
 import http
 from urllib import parse, request
 
-from logger import Logger
-from parser_exception import ReadFromServerException
-from subproc import SubProcessBase
+from http_websocket.logger import Logger
+from http_websocket.parser_exception import ReadFromServerException
+from http_websocket.subproc import SubProcessBase
 
-LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+'''
+sc_get_ids_url:
+http://crec.streamcraft.com:95/noauth/apperror/getAppErrorIds
+sc_get_log_url:
+http://crec.streamcraft.com:95/noauth/apperror/getAppErrorByIds
+获取某一天的日志
+'''
+logname = 'CrashLog' + datetime.datetime.now().strftime('%Y%m%d%H%M%S') + '.log'
+LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', logname)
 LOG = Logger(LOG_FILE, 'GetCrashLog')
 
 YESTERDAY = str(datetime.date.today() - datetime.timedelta(1))
@@ -74,6 +82,7 @@ class GetCrashInfoFromServer(object):
         
         Returns:
             [type] -- [description]
+        sc不支持获取某个版本号的崩溃日志，WG支持获取某个版本号的崩溃日志
         """
         # Define request for urlopen.
         _req = request.Request
@@ -96,8 +105,8 @@ class GetCrashInfoFromServer(object):
         # Set request parameters to headers and request via method GET.
         elif version[0] == 'GameLive':
             # Change the date format to %Y%m%d from %Y-%m-%d
-            _strpdate = datetime.datetime.strftime(
-                datetime.datetime.strptime(date, '%Y-%m-%d'),
+            _strpdate = datetime.datetime.strftime(              #日期格式转化为字符串格式
+                datetime.datetime.strptime(date, '%Y-%m-%d'),   #字符串格式转化为日期格式
                 '%Y%m%d'
             )
             # Headers set.
@@ -108,10 +117,10 @@ class GetCrashInfoFromServer(object):
 
             return request.Request(url=self.sc_get_ids_url, headers=header, method='GET')
         else:
-            err = "Can't splicing the url. %s" % params.__str__()
+            err = "Can't splicing the url." #%s" % params.__str__()
             raise ReadFromServerException(err)
 
-    def get_task_list(self, version, date, times=4, before=0):
+    def get_task_list(self, version, date, platform, times=4, before=0):
         """Get crash_id from web API
 
         Arguments:
@@ -120,30 +129,35 @@ class GetCrashInfoFromServer(object):
 
         Returns:
             [List] -- [The crash ids list.]
+            id：a是安卓
+            i是苹果 f是崩溃 c是common
         """
         
         try:
             # TODO: Http status 200 judge logic. to ensure the server still works.
             _req = self.splicing_ids_url(version=version, date=date)
             task_list = request.urlopen(_req).read()
+            #LOG.info(task_list[1])
             # Validation data validity.
 
             # validation the first character is symbol "[". If it's, that could eval to list. if not, that's useless result.
             if task_list[0] == 91:
                 _task_list = eval(task_list)
+                #LOG.info(_task_list)
                 # remove the id is not startswith 'if'. if=iOS Crash.
                 _temp_list = list()
                 for x in _task_list:
-                    if not x.startswith('if'):
+                    if not x.startswith(platform):
                         _temp_list.append(x)
                 _task_list = list(set(_task_list).difference(_temp_list))
+                #LOG.info(_task_list)
                 # If len == 0. Try to get the the day before.
                 if _task_list.__len__() != 0:
                     return _task_list
-                elif _task_list.__len__() == 0 and not before:
+                elif _task_list.__len__() == 0 and not before:                #如果无数据，再去获取前一天的数据
                     before += 1
                     LOG.info(' %-20s ]-[ Crash id list from server: \n%s' % (LOG.get_function_name(), [_req.full_url, _req.data, _req.headers]))
-                    new_date = str((datetime.datetime.strptime(date, '%Y-%m-%d') - datetime.timedelta(1)).date())
+                    new_date = str((datetime.datetime.strptime(date, '%Y-%m-%d') - datetime.timedelta(1)).date())          #strptime由字符串格式转化为日期格式
                     return self.get_task_list(version=version, date=new_date, before=before)
                 elif _task_list.__len__() == 0 and before:
                     LOG.info(' %-20s ]-[ Crash id list from server: \n%s' % (LOG.get_function_name(), str(task_list)))
@@ -183,6 +197,7 @@ class GetCrashInfoFromServer(object):
         }
         parm_encode = parse.urlencode(param).encode('utf-8')
         _req_l.append(request.Request(url=self.wg_get_log_url, data=parm_encode, method='POST'))
+        #LOG.info(_req_l)
 
         crash_content = bytes()
 
@@ -198,6 +213,7 @@ class GetCrashInfoFromServer(object):
                     _request = request.urlopen(req_v)
                 if _request.getcode() == 200:
                     crash_content = _request.read()
+                    #LOG.info(crash_content)
                     if crash_content.__len__() < 100:
                         crash_content = b''
             except request.HTTPError as HttpErr:
@@ -214,17 +230,20 @@ class GetCrashInfoFromServer(object):
             finally: 
                 if not crash_content:
                     if req_k == _req_l.__len__() - 1:
-                        if HttpErr:
-                            raise ReadFromServerException("%s, %s" % (HttpErr.code, HttpErr.reason))
-                        elif UrlErr:
-                            raise ReadFromServerException(UrlErr.reason)
-                        else:
-                            raise ReadFromServerException("can not read crash log with %s. Both WeGamers & StreamCraft." % args['task_id'])
+                        # if HttpErr:
+                        #     raise ReadFromServerException("%s, %s" % (HttpErr.code, HttpErr.reason))
+                        # elif UrlErr:
+                        #     raise ReadFromServerException(UrlErr.reason)
+                        # else:
+                            #raise ReadFromServerException("can not read crash log with %s. Both WeGamers & StreamCraft." % args['task_id'])
+                            crash_content = b''
+                            return crash_content
                 else:
                     LOG.debug(' %-20s ]-[ Get crash log with id(%s) done!' % (LOG.get_function_name(), args['task_id']))
+                    LOG.info(crash_content)
                     return crash_content
  
-    def get_task_log(self, version, que, date=YESTERDAY):
+    def get_task_log(self, version, que, date=YESTERDAY, platform='if'):
         """Generation each log via web API from analysis server.
         
         Arguments:
@@ -242,15 +261,28 @@ class GetCrashInfoFromServer(object):
         """
         if isinstance(version, tuple):
             # Get crash ids from server
-            task_ids = self.get_task_list(version=version, date=date)
+            task_ids = self.get_task_list(version=version, date=date, platform=platform)
+            #LOG.info(task_ids)
             if not task_ids:
                 que.put('Nothing has read.')
                 raise ReadFromServerException('Getting nothing from server.')
             else:
                 que.put('Crash from %s' % version[0])
-                for index, task_id in  enumerate(task_ids):
+                for index, task_id in enumerate(task_ids):
                     que.put('<h4>\t%d/%d Parsing...</h4>' % (index + 1, task_ids.__len__()))
                     _crash_log = self.get_crash_log(task_id=task_id, projectname=version[0])
                     yield task_id, _crash_log
         else:
             raise TypeError('The type error of variable "version". Expected %s. But %s ' % (type(tuple()), type(version)))
+
+if __name__ == '__main__':
+    crashinfo = GetCrashInfoFromServer()
+    #crashinfo.get_task_list(('GameLive','V1.3.0 (4056)'), '2018-5-23', times=4, before=0)
+    #crashinfo.get_crash_log(task_id='if-2009044592-1527012369681',projectname='GameLive')
+    log = crashinfo.get_task_log(('GameLive','V1.8.1 (3312)'), que=queue.Queue(), date='2018-10-26', platform='af')
+    for ln in log:
+        LOG.info(ln[1])
+
+
+
+

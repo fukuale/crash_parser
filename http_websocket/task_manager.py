@@ -6,16 +6,16 @@ from multiprocessing import Process, Queue
 
 import zmq
 
-import regular_common
-from get_crash_log import GetCrashInfoFromServer
-from init_dsym import DownloadDSYM
-from jira_handler import JIRAHandler
-from logger import Logger
-from parse_crash_log import CrashParser
-from parser_exception import (BreakProcessing, ParseBaseInformationException,
+from . import regular_common
+from .get_crash_log import GetCrashInfoFromServer
+from .init_dsym import DownloadDSYM
+from .jira_handler import JIRAHandler
+from .logger import Logger
+from .parse_crash_log import CrashParser
+from .parser_exception import (BreakProcessing, ParseBaseInformationException,
                               ReadFromServerException)
-from read_build_ftp import ReadVersionInfoFromFTP
-from report_export import ReportGenerator
+from .read_build_ftp import ReadVersionInfoFromFTP
+from .report_export import ReportGenerator
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'TaskManager')
@@ -68,15 +68,15 @@ class TaskSchedule(object):
         Yields:
             [Tuple] -- 0)Product name, 1)Version info of this project.EG. V1.1.1XXX
         """
-        for proj in self.jira.get_projects():
-            if proj[0] in self.pjname.keys():
+        for proj in self.jira.get_projects():       #(project.key, project.id),如（'WELIVE','10500'）
+            if proj[0] in self.pjname.keys():         #(GAMEIM,WELIVE)
                 # Read newest 5 versions from JIRA
-                _ver_l = self.jira.read_project_versions(project_name=proj[0])
+                _ver_l = self.jira.read_project_versions(project_name=proj[0])   #<JIRA Version: name='1.8.0', id='11827'>
                 # Stitching version information to read crash ids from server
                 if _ver_l.__len__() > 0:
-                    _version_s = self.build_code.stitching_last_version(project_name=proj[0], jira_ver=_ver_l)
+                    _version_s = self.build_code.stitching_last_version(project_name=proj[0], jira_ver=_ver_l)       # V2.4.0 (14959)
                     if _version_s:
-                        yield self.pjname[proj[0]], _version_s
+                        yield self.pjname[proj[0]], _version_s        #('GameLive', V1.8.0 (4636))
                     else:
                         LOG.error(' %-20s ]-[ Can not detected svn code with project name(%s) and versions{%s} from build server!' % (LOG.get_function_name(), proj[0], _ver_l))
                         raise ParseBaseInformationException("Can not detected svn code with project name(%s) and versions{%s} from build server!" % (proj[0], _ver_l))
@@ -93,19 +93,19 @@ class TaskSchedule(object):
             [Tuple] -- ((Crash id, Crash log), (project name, version information))
         """
         quee.put('Read log from server.')
-        _version_l = self.gen_version_list()
+        _version_l = self.gen_version_list()         #('GameLive', V1.8.0 (4636))
         _no_log_l = list()
         count = 0
         for version in _version_l:
             # Read log with version information.
             count += 1
             try:
-                _c_log = self.get_log.get_task_log(version=version, que=quee)
+                _c_log = self.get_log.get_task_log(version=version, que=quee)           #task_id, _crash_log
                 for _log in _c_log:
                     if version[0] == 'GameLive':
                         # Special handle for StreamCraft.
                         if 'StreamCraft' in _log[-1].decode():
-                            yield _log, version
+                            yield _log, version    # ((task_id, _crash_log),('GameLive', V1.8.0 (4636))
                     elif version[0] in _log[-1].decode():
                         yield _log, version
             except ReadFromServerException:
@@ -132,6 +132,7 @@ class TaskSchedule(object):
         """
         # Url or crash id in.
         que.put(os.getpid())
+        LOG.debug(raw_data)
         if raw_data != 'guopengzhang':
             af_parse = str()
             try:
@@ -160,7 +161,7 @@ class TaskSchedule(object):
                 elif ("deviceType" in raw_data and "0x00" in raw_data and "version" in raw_data) or (
                         "Hardware Model" in raw_data and "Version" in raw_data):
                     que.put('Crash log detected. Ready for parsing.')
-                    af_parse = self.parser.parsing(raw_data=raw_data,
+                    af_parse = self.parser.parsing(raw_data=raw_data,                #返回值
                                                 project_list=self.pjname)
                 else:
                     af_parse = "Can\'t read environment information from this log content. \
@@ -179,21 +180,21 @@ class TaskSchedule(object):
         elif raw_data == 'guopengzhang':
             que.put('Parsing log from crash collection server start.')
             try:
-                for crash_info in self.read_log_from_server(que):
+                for crash_info in self.read_log_from_server(que):                  #((task_id, _crash_log),('GameLive', V1.8.0 (4636))
                     _project_name = str()
-                    env = self.parser.get_ver_info(crash_info[0][-1])
+                    env = self.parser.get_ver_info(crash_info[0][-1])        # ['1.3.0', '4056', 'appstore' ]
                     for key, _proj_name in enumerate(self.pjname.values()):
                         _log = str(crash_info[0][-1])
                         # Special handle for StreamCraft.
-                        if _proj_name in _log or 'StreamCraft' in _log:
+                        if _proj_name in _log or 'StreamCraft' in _log or 'SC' in _log:
                             _project_name = _proj_name
                             break
                         else:
                             if key == self.pjname.values().__len__() - 1:
                                 raise BreakProcessing('Can not detected the valid project name from this content.')
 
-                    abs_dsym = self.dsym.init_dsym(version_number=env[0],
-                                                   build_id=env[1],
+                    abs_dsym = self.dsym.init_dsym(build_id=env[1],
+                                                   version_number=env[0],
                                                    version_type=env[-1],
                                                    product_name=crash_info[-1][0],
                                                    product_list=self.pjname)

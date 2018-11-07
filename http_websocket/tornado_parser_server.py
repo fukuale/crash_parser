@@ -2,7 +2,9 @@
 # Create = '2017/09/25'
 
 import os
+import sys
 import time
+sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
 import tornado.httpserver
 import tornado.ioloop
@@ -13,8 +15,8 @@ from tornado.options import define, options
 from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
 
-from logger import Logger
-from task_manager import TaskSchedule
+from http_websocket.logger import Logger
+from http_websocket.task_manager import TaskSchedule
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'TornadoServer')
@@ -68,8 +70,9 @@ class ParserHandler(WebSocketHandler):
                 valid = 1
             else:
                 self.write_message('Unknow data. type %s ' % type(message))
+            LOG.debug(message)
             if valid:
-                socket.send_string(str(message))
+                socket.send_string(str(message))       #将消息发送到7725端口
                 childpid = socket.recv()
                 msg = ' '.join(['='*20, ('Process %s Started!' % childpid.decode()).center(25, ' '), '='*20])
                 self.write_message(msg)
@@ -86,7 +89,7 @@ class ParserHandler(WebSocketHandler):
             self.write_message('No content was submit.')
 
     def check_origin(self, origin):
-        return True
+        return True     # 允许WebSocket的跨域请求
 
 
 class SetWebConf(WebSocketHandler):

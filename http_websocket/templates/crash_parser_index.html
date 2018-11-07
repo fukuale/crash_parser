@@ -212,7 +212,7 @@
         function initSocket() {
             if (window.WebSocket) {
             var h4count = 0
-            socket = new WebSocket('ws://192.168.1.100:7724/push_crash');
+            socket = new WebSocket('ws://localhost:7724/push_crash');
 
             socket.onmessage = function(event) {
                 result = document.getElementById('result_content')

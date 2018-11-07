@@ -4,9 +4,10 @@
 
 import os
 
-import subproc
-from parser_exception import FailedToDownloadSYM
-from read_build_ftp import ReadVersionInfoFromFTP
+from . import subproc
+from .parser_exception import FailedToDownloadSYM
+from .read_build_ftp import ReadVersionInfoFromFTP
+import time
 
 
 class DownloadDSYM(object):
@@ -19,7 +20,7 @@ class DownloadDSYM(object):
         self.default_download_folder = os.path.join(
             os.path.expanduser('~'), 'CrashParser', 'dSYM')
 
-    def init_dsym(self, build_id, version_number, version_type, product_name, product_list):
+    def init_dsym(self, build_id, version_number, version_type, product_name, product_list):          ##解压后，目录下的StreamCraft文件, '4056','1.3.0','appstore'
         """Download dSYM file if not existing and return the absolute folder address.
 
         Arguments:
@@ -61,9 +62,9 @@ class DownloadDSYM(object):
                 # if download_res:
                 # Valid files when the file size is more than 10MB
                 if os.path.getsize(os.path.join(os.path.join(
-                        self.default_download_folder, _abs_dsym))) > 102400:
-                    unzip_zip_cmd = 'unzip -o %s -d %s' % (
-                        os.path.join(self.default_download_folder, _abs_dsym),
+                        self.default_download_folder, _abs_dsym))) > 102400:    #102400字节
+                    unzip_zip_cmd = 'unzip -o %s -d %s' % (                      #将压缩文件test.zip在指定目录下解压缩，如果已有相同的文件存在，要求unzip命令覆盖原先的文件。
+                        os.path.join(self.default_download_folder, _abs_dsym),   #解压DSYM.zip，过滤出解压后的*.app.DSYM文件夹,再重命名为_abs_dsym
                         self.default_download_folder)
                     unzip_res = self.proc.sub_procs_run(cmd=unzip_zip_cmd)
                     # Unzip downloaded file successfully.
@@ -80,11 +81,16 @@ class DownloadDSYM(object):
                         # if product_name == 'GameLive':
                         #     grep_file = 'ls %s | grep %s_AppStore.app' % (self.default_download_folder, product_name)
                         # else:
-                        grep_file = "ls %s | grep -E '%s.app|%s_HOC.app|StreamCraft.app'" % (self.default_download_folder, product_name, product_name)
+                        grep_file = "ls %s | grep -E '%s.app|%s_HOC.app|StreamCraft.app|SC'" % (self.default_download_folder, product_name, product_name)          #grep -E 匹配多个
                         result = self.proc.sub_procs_run(cmd=grep_file).stdout.decode().split()[0]
                         # Rename unzipped file.
                         os.rename(os.path.join(self.default_download_folder, result),
                                   _abs_dsym)
+                        print(_abs_dsym)
+                        time.sleep(3)
+                        for dir in os.listdir(os.path.join(_abs_dsym,'Contents','Resources','DWARF')):
+                            if 'SC' in dir:
+                                os.rename(os.path.join(_abs_dsym,'Contents','Resources','DWARF',dir), os.path.join(_abs_dsym,'Contents','Resources','DWARF','StreamCraft'))
                         return _abs_dsym
         raise FailedToDownloadSYM('Maybe download dSYM file failed! Used link:%s' % http_addr)
 

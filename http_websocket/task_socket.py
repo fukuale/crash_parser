@@ -5,10 +5,19 @@ import os
 import socket
 import time
 from multiprocessing import Process, Queue
-
+import sys
 import zmq
 
-from task_manager import TaskSchedule
+sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+#E:\SourceCode\crash_parser_server
+
+from http_websocket.task_manager import TaskSchedule
+from http_websocket.logger import Logger
+
+
+
+LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
+LOG = Logger(LOG_FILE, 'SocketServer')
 
 
 class Task_ZMQ():
@@ -62,10 +71,11 @@ class Task_ZMQ():
         while True:
             msg = _zmq.recv()
             msg = msg.decode().strip()
+            LOG.debug(msg)
             if msg != 'get':
                 que = Queue()
                 ts = TaskSchedule()
-                task_run = Process(target=ts.run_parser, args=(que,msg))
+                task_run = Process(target=ts.run_parser, args=(que, msg))
                 task_run.start()
                 while que.empty():
                     time.sleep(0.1)

@@ -1,7 +1,7 @@
 # Author = 'Vincent FUNG'
 # Create =  '2017/09/28'
 
-import sqlite_base
+from . import sqlite_base
 
 
 
@@ -61,7 +61,7 @@ class SimilarityCompute(object):
             return [x for x in objectin.split() if not self.hex_verify(x)]
 
     def mutable_remove(self, objectin):
-        """Remove mutable data and symbol from object.
+        """Remove mutable data and symbol from object.            #移除如下特殊字符，16进制，纯数字，以空格分割
 
         Arguments:
             objectin {String} -- [description]
@@ -135,7 +135,7 @@ class SimilarityCompute(object):
 
                 # Compare the percentage of similarity. item[0]=ROWID, item[1]=CONTENT.
                 _percent_of.append(
-                    (_item[0], _item[1], self.compute_similarity(alpha_str, _sql_only_str))
+                    (_item[0], _item[1], self.compute_similarity(alpha_str, _sql_only_str))         #[ROWID, FREQUENCY, CONTENT]
                     )
             # Sort percentage by ASC. (0.1 .. 1)
             _percent_of = sorted(_percent_of, key=lambda x: (x[-1]))
@@ -147,7 +147,7 @@ class SimilarityCompute(object):
                 _row_id = sqlite_base.update(conn, cursor,
                                              end=False,
                                              table_name='statistics',
-                                             columns=['FREQUENCY', 'LAST_VERSION'],
+                                             columns=['FREQUENCY', 'LAST_VERSION'],        #FREQUENCY，为重复次数
                                              values=[_item[1] + 1, self.ver_info],  # count have to set one character.
                                              condition='where rowid = %d' % _percent_of[-1][0])
                 sqlite_base.insert(conn, cursor,

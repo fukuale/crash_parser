@@ -4,13 +4,14 @@
 import os
 import re
 
-import sqlite_base
-import subproc
-from init_dsym import DownloadDSYM
-from logger import Logger
-from parser_exception import ParseBaseInformationException, ParserException
-from similarity_compare import SimilarityCompute
-import regular_common as search
+from . import sqlite_base
+from . import subproc
+from .init_dsym import DownloadDSYM
+from .logger import Logger
+from .parser_exception import ParseBaseInformationException, ParserException
+from .similarity_compare import SimilarityCompute
+from . import regular_common as search
+import time
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'ParseCrashLog')
@@ -98,11 +99,11 @@ class CrashParser:
         for i in content:
             if 'version' in i or 'Version' in i:
                 version_code = search.version_number(i)
-                build_number = search.consecutive_number(i)
+                build_number = search.contsecutive_number(i)
                 chinese = search.chinese(i)
                 if hasattr(chinese, 'group'):
                     if search.chinese(i).group(0) == '正式版':
-                        return [version_code.group(0), build_number.group(0), 'appstore']
+                        return [version_code.group(0), build_number.group(0), 'appstore']             #['1.3.0', '4056', 'appstore' ]
                 else:
                     return [version_code.group(0), build_number.group(0), 'dev']
         raise ParserException('Could not detected version information in this content.')
@@ -149,7 +150,7 @@ class CrashParser:
                 if project_name in x or 'StreamCraft' in x:
                     # Get memory start adress
                     _memory_addr_start = hex(
-                        int('%s' % line[2], 16) - int(line[-1]))
+                        int('%s' % line[2], 16) - int(line[-1]))        #转成16进制
                     # Get memory stack adress
                     _memory_addr_stack = line[2]
                     # Merge mulitple data to list.
@@ -219,8 +220,14 @@ class CrashParser:
         _l_method_call = list()
         _app_symbol_file = self.get_dsym_file(dSYM_file, product_name)
 
+        time.sleep(3)
+        for dir in os.listdir(os.path.join(dSYM_file, 'Contents', 'Resources', 'DWARF')):
+            if 'SC' in dir:
+                os.rename(os.path.join(dSYM_file, 'Contents', 'Resources', 'DWARF', dir),
+                          os.path.join(dSYM_file, 'Contents', 'Resources', 'DWARF', 'StreamCraft'))
+
         # call get_crash_list to filter what data need to parsing.
-        stacktrace_list, cpu_arm_ = self.get_stacktrack_list(crash_list=crash_list, project_name=product_name)
+        stacktrace_list, cpu_arm_ = self.get_stacktrack_list(crash_list=crash_list, project_name=product_name)       #[_index, line[0], line[1],memory_addr_stack, _memory_addr_start, line[-1]],'arm64'
 
         if not stacktrace_list:
             # Useless crash log.
@@ -230,7 +237,7 @@ class CrashParser:
                                crash_id=crash_id)
             raise ParserException('Can not detect product name from stacktrace content, this is an invalid log.')
 
-        for _index, _value in enumerate(stacktrace_list):
+        for _index, _value in enumerate(stacktrace_list):            #[ [_index, line[0], line[1],_memory_addr_stack, _memory_addr_start, line[-1]],[...] ]
 
             # Pick memory address
             _line_id = _value[0]
@@ -242,7 +249,7 @@ class CrashParser:
 
             # Splicing ATOS command.
             atos_cmd = ' '.join([
-                atos, arch, cpu_arm_, op, _app_symbol_file,
+                atos, arch, cpu_arm_, op, _app_symbol_file,                  #解压后，目录下的StreamCraft文件
                 _l, _base_addr, _memory_addr])
 
             # Call subprocess to run atos command.
@@ -271,7 +278,7 @@ class CrashParser:
             # For compute frenquency of appearing.
             sqlite_base.update(conn, cursor,
                                table_name='backtrack_%d' % tableid,
-                               reason=','.join(_l_method_call),
+                               reason=','.join(_l_method_call),                    #reason
                                condition="where CRASH_ID = '%s'" % crash_id,
                                end=False)
             # Insert the final crash log to table report.
@@ -314,15 +321,18 @@ class CrashParser:
             else:
                 _raw_data = raw_data
             for _name in project_list.values():
-                if _name.upper() in _raw_data.upper() or _name.upper() in _raw_data.upper():
+                if 'StreamCraft' in _raw_data or 'SC' in _raw_data:                #2018.11.6
+                    product_name = 'STREAMCRAFT'
+                elif _name in _raw_data:
                     product_name = _name
-                    break
+                print (product_name)
+                break
             if not product_name:
                 raise ParseBaseInformationException('Can\'t detect any product name from the crash log!')
 
         # Get version info from raw data.
         if not version_info:
-            version_info = CrashParser.get_ver_info(raw_data)
+            version_info = CrashParser.get_ver_info(raw_data)         # #['1.3.0', '4056', 'appstore' ]
 
         # Download dSYM file if not exists.
         abs_dsym = self.dsym.init_dsym(version_number=version_info[0],

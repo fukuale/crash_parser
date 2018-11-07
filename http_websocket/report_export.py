@@ -5,16 +5,15 @@ import collections
 import datetime
 import os
 import time
-
 import jira
 
-import regular_common
-import sqlite_base
-from jira_handler import JIRAHandler
-from logger import Logger
-from parse_crash_log import CrashParser
-from parser_exception import BreakProcessing
-from similarity_compare import SimilarityCompute
+from . import regular_common
+from . import sqlite_base
+from .jira_handler import JIRAHandler
+from .logger import Logger
+from .parse_crash_log import CrashParser
+from .parser_exception import BreakProcessing
+from .similarity_compare import SimilarityCompute
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'CrashParser', 'log', 'CrashParser.log')
 LOG = Logger(LOG_FILE, 'ReportExport')
@@ -42,7 +41,7 @@ class ReportGenerator(SimilarityCompute):
         today = datetime.datetime.today() - datetime.timedelta(day)
 
         return str(
-            int(time.mktime(
+            int(time.mktime(                     #将时间元组转化为时间戳
                 datetime.datetime(
                     today.year, today.month, today.day, 0, 0, 0).timetuple())))
 
@@ -59,7 +58,7 @@ class ReportGenerator(SimilarityCompute):
                                          table_name='statistics',
                                          condition='where LAST_UPDATE > %s' % ReportGenerator.get_yesterday_timestamp())
         if _later_than:
-            return [x[0] for x in _later_than]
+            return [x[0] for x in _later_than]   #?
         else:
             return _later_than
 
@@ -86,7 +85,7 @@ class ReportGenerator(SimilarityCompute):
                 if _new_reason:
                     for _x_reason in _new_reason:
                         _x_reason = list(_x_reason)
-                        _x_reason.insert(0, table_id)
+                        _x_reason.insert(0, table_id)      #0为插入位置
                         yield list(_x_reason)
                 else:
                     LOG.cri(' %-20s ]-[ Table %s not match this insert time: %s' %
@@ -96,8 +95,8 @@ class ReportGenerator(SimilarityCompute):
             LOG.info(' %-20s ]-[ Look like have not any new crash today: %s' %
                      (LOG.get_function_name(), ReportGenerator.get_yesterday_timestamp()))
 
-    def make_uniquenesss_list(self, datain):
-        """Make a list exlude the duplicate data.
+    def make_uniquenesss_list(self, datain):      #[(table_id, ROWID, CRASH_ID, PROJECT, REASON),()]
+        """Make a list exclude the duplicate data.
         
         Arguments:
             datain {List} -- 0) The id of backtrack tables.
@@ -110,7 +109,7 @@ class ReportGenerator(SimilarityCompute):
             List -- all tables reason. excluded duplicate data. complex data struct..
         """
         # Define clear list.
-        _only_crash_reason = list()
+        _only_crash_reason = list()                      #_only_crash_reason?
 
         if isinstance(datain, collections.Iterable):
             for _per_reason in datain:
@@ -148,8 +147,8 @@ class ReportGenerator(SimilarityCompute):
                             break
                 else:
                     _per_reason.insert(2, 1)
-                    _per_reason[0] = {_per_reason[0]: [_per_reason[1]]} # {tableid:rowid}
-                    _only_crash_reason.append(_per_reason)
+                    _per_reason[0] = {_per_reason[0]: [_per_reason[1]]}   # {_table_id:rowid}
+                    _only_crash_reason.append(_per_reason)         #[{tableid:rowid}, ROWID, 1, CRASH_ID, PROJECT, REASON),()]
             return _only_crash_reason
 
     @staticmethod
@@ -165,7 +164,7 @@ class ReportGenerator(SimilarityCompute):
             [Tuple] -- [1) loop time. for range(). 2) remaining data size. last time to get.]
         """
         if step and step < end:
-            _ran = (end - start) // step
+            _ran = (end - start) // step     #结果为整数
             if _ran != end / step:
                 yield _ran + 1, end
             else:
@@ -193,7 +192,7 @@ class ReportGenerator(SimilarityCompute):
                                          condition='')
         if _rows_count:
             # Limit the search result data size on max 30.
-            for ind in ReportGenerator.range_len_gen(_start, _rows_count[0][0], _step):
+            for ind in ReportGenerator.range_len_gen(_start, _rows_count[0][0], _step):          #_(ran + 1, 0)
                 # Uhmmmm.. I forgot why i write the following line...
                 for i in range(_start, ind[0] + 1):
                     # Search part of data. Limit memory usage.
@@ -217,7 +216,7 @@ class ReportGenerator(SimilarityCompute):
                     _start += _step
 
     def match_reason(self):
-        """Math tables reasons data with today's data.
+        """Match tables reasons data with today's data.
         And update releation data.
 
         Returns:
@@ -225,19 +224,19 @@ class ReportGenerator(SimilarityCompute):
         """
         conn, cursor = sqlite_base.sqlite_connect()
         # Read today crashes reasons.
-        _td_reasons = self.get_specific_range_crashes()
+        _td_reasons = self.get_specific_range_crashes()         #[table_id, ROWID, CRASH_ID, PROJECT, REASON]
         # Remove duplicate data.
-        _uniqueness_l = self.make_uniquenesss_list(_td_reasons)
+        _uniqueness_l = self.make_uniquenesss_list(_td_reasons)    #[{tableid:rowid}, ROWID, 1, CRASH_ID, PROJECT, REASON),()]
         # Get all the reasons that has been logged.
-        for _reason in self.search_sql_reason(conn, cursor):
+        for _reason in self.search_sql_reason(conn, cursor):   #[(ROWID, PROJECT, REASON), ()]
             if _reason.__len__() != 0:
                 for _per_reason in _reason:
                     # Clean that reason from table reasons.
-                    _s_clear = self.mutable_remove(str(_per_reason[-2:]))
+                    _s_clear = self.mutable_remove(str(_per_reason[-2:]))    #_per_reason[-2:]要改成_per_reason[-1]吧
                     # Traverse today's reasons list.
                     for _iro_key, _iro_value in enumerate(_uniqueness_l):
                         # Clean that reason from today's list.
-                        _iro_clear = self.mutable_remove(str(_iro_value[-2:]))
+                        _iro_clear = self.mutable_remove(str(_iro_value[-2:]))       #同上
                         # Compute similarity.
                         _sim_percent = self.compute_similarity(_iro_clear, _s_clear)
                         if _sim_percent == 1:
@@ -356,7 +355,7 @@ class ReportGenerator(SimilarityCompute):
             # Get Frequency from JIRA issue.
             frequency_regular_result = regular_common.frequency(_exists_summary)
             # Get Frequency integer data. Reasons might be have integer too.
-            if not hasattr(frequency_regular_result, 'group'):
+            if not hasattr(frequency_regular_result, 'group'):      #返回true表示有匹配到
                 LOG.cri(' %-20s ]-[ Issue %s did not have the keyword(frequency).' % (LOG.get_function_name(), _reasons[2]))
             else:
                 _frequency_int = int(regular_common.interge(frequency_regular_result.group(0)).group(0))
@@ -372,7 +371,7 @@ class ReportGenerator(SimilarityCompute):
         """Submit issues to JIRA server.
         """
         # Get the reasons need to submit of today.
-        _only_crash_id_l = self.match_reason()
+        _only_crash_id_l = self.match_reason()           #[{tableid:rowid}, ROWID, 1, CRASH_ID, PROJECT, REASON),()]
         if _only_crash_id_l.__len__() > 0:
             conn, cursor = sqlite_base.sqlite_connect()
             for index, _crash_id in enumerate(_only_crash_id_l):

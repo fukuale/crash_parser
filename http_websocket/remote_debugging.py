@@ -1,8 +1,8 @@
 import sys
 import traceback
-import StringIO
-
-from copy_reg import dispatch_table, pickle
+import io
+from functools import wraps
+from copyreg import dispatch_table, pickle
 
 def exc_info(hide_calls = 0):
     '''as sys.exc_info() but returns a remote exception object'''
@@ -18,7 +18,7 @@ def withTracebackPrint(ErrorType, thrownError, _traceback):
 and the _traceback
 
 can be used like withTracebackPrint(*sys.exc_info())'''
-    file = StringIO.StringIO()
+    file = io.StringIO()
     traceback.print_exception(ErrorType, thrownError, _traceback, file = file)
     return _loadError(ErrorType, thrownError, file.getvalue())
     ## why don't we just use the following line?
@@ -26,7 +26,7 @@ can be used like withTracebackPrint(*sys.exc_info())'''
     ## because the arguments would get hurt
     ## or the traceback print has no unescaped newlines
 
-class _RemoteExceptionMeta(type):
+class _RemoteExceptionMeta(type):                     #metaclass
     'Metaclass for RemoteExceptions to make copy_reg accept them'
     pass
                     
@@ -34,7 +34,7 @@ def _pickle_function(RemoteExceptionClass):
     'how to pickle the remote exception type'
     return asRemoteException, (RemoteExceptionClass.BaseExceptionType,)
 
-pickle(_RemoteExceptionMeta, _pickle_function)
+pickle(_RemoteExceptionMeta, _pickle_function)           #?
 
 _remoteExceptionCache = {} # exception : RemoteException
 
@@ -50,7 +50,7 @@ def _newRemoteException(ErrorType):
             RemoteErrorBaseType.__init__(self, *thrownError.args)
             
         loadError = staticmethod(_loadError)
-        
+
         def __str__(self):
             return '\n%s\n%s' % (self.tracebackString, self.thrownError)
 
@@ -85,7 +85,7 @@ pass
 def _loadError(ErrorType, thrownError, tracebackString):
     '''constructor of RemoteExceptions'''
     RemoteException = asRemoteException(ErrorType)
-    return RemoteException(thrownError, tracebackString)
+    return RemoteException(thrownError, tracebackString)         #?
 
 def showError(function):
     def functionShowingTheError(*args, **kw):
@@ -93,7 +93,7 @@ def showError(function):
             return function(*args, **kw)
         except:
             type, error, traceback = exc_info(1)
-            raise type, error, traceback
+            raise type(error).with_traceback(traceback)
     functionShowingTheError.__name__ = function.__name__
     functionShowingTheError.__module__ = function.__module__
     return functionShowingTheError

@@ -3,13 +3,13 @@
 import re
 
 from jira import JIRA, JIRAError
-import regular_common
+from http_websocket import regular_common
 
 class JIRAHandler(object):
     """JIRA handler"""
     def __init__(self):
         super(JIRAHandler, self).__init__()
-        self.jira_addr = 'http://10.0.21.97:8080'
+        self.jira_addr = 'http://10.0.3.100:8080'
         self.acc = 'CrashParser'
         self.acc_pwd = 'qwer1234'
         self.jira = JIRA(self.jira_addr, basic_auth=(self.acc, self.acc_pwd))
@@ -197,7 +197,7 @@ class JIRAHandler(object):
                 if len(ver_aft.group(0)) == len(ver_jira.name):
                     _versions_l.append(ver_jira.name)
         if _versions_l.__len__() > 0:
-            _versions_l.sort(key=lambda x: tuple(int(v) for v in x.split('.')))
+            _versions_l.sort(key=lambda x: tuple(int(v) for v in x.split('.')))           #升序排列
             if _versions_l.__len__() < 5:
                 return _versions_l
             else:
@@ -213,3 +213,10 @@ class JIRAHandler(object):
         for project in self.jira.projects():
             _l_projects.append((project.key, project.id))
         return _l_projects
+
+if __name__ == '__main__':
+    Jira=JIRAHandler()
+    for project in Jira.jira.projects():
+        print (project)
+        print (project.key, project.id)
+        print (Jira.jira.project_versions(project.key))

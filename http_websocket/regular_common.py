@@ -38,16 +38,16 @@ def crash_id(str_in):
     return _reg.search(str_in)
 
 def version_number(str_in):
-    _reg = re.compile(r'\d+(\.\d+){0,3}')
+    _reg = re.compile(r'\d+(\.\d+){0,3}')       #最少匹配 0 次且最多匹配 3 次
     return _reg.search(str_in)
 
 def build_number_r(str_in):
     _reg = re.compile(r'[r]\d+')
     return _reg.search(str_in)
 
-def consecutive_number(str_in):
+def contsecutive_number(sr_in):
     _reg = re.compile(r'[\d]{2,}')
-    return _reg.search(str_in)
+    return _reg.search(sr_in)
 
 def chinese(str_in):
     _reg = re.compile(r'[\u4e00-\u9fa5]+')

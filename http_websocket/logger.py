@@ -17,10 +17,10 @@ class Logger:
     """Logger class.
     """
     def __init__(self, path, logger, clevel=logging.INFO, Flevel=logging.DEBUG):
-        self.logger = logging.getLogger(logger)
+        self.logger = logging.getLogger(logger)        # 获取名为logger的logger
         self.logger.setLevel(logging.DEBUG)
         fmt = logging.Formatter(
-            '[ %(asctime)s ]-[ %(name)-20s ]-[ %(levelname)-8s ]: -> [ %(message)s ]')
+            '[ %(asctime)s ]-[ %(name)-20s ]-[ %(levelname)-8s ]: -> [ %(message)s ]')               # '%(asctime)s [%(levelname)s] %(filename)s line:%(lineno)d: %(message)s'
         # console logger
         shell_stream = logging.StreamHandler()
         shell_stream.setFormatter(fmt)

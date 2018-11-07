@@ -8,7 +8,7 @@ import sys
 import os
 
 # try:
-from logger import Logger
+from .logger import Logger
 # except ModuleNotFoundError:
 #     from http_websocket.logger import Logger
 
@@ -18,7 +18,7 @@ log = Logger(log_file, 'SubProcessBase')
 
 def popen_judge(popen_obj, method_name, parameters):
     if popen_obj.returncode == 0:
-        log.debug(' %-20s ]-[ Return: %s' % (method_name, popen_obj.stdout))
+        log.debug(' %-20s ]-[ Return: %s' % (method_name, popen_obj.stdout))           #%-ms：如果串长小于m，则在m列范围内，字符串向左靠，右补空格。
         return popen_obj
     elif popen_obj.returncode != 0 and popen_obj.stderr:
         log.cri(
@@ -43,7 +43,7 @@ class SubProcessBase:
     @staticmethod
     def sub_procs_run(**args):
 
-        _func_name = sys._getframe().f_back.f_code.co_name
+        _func_name = sys._getframe().f_back.f_code.co_name            #从函数内部获取函数本身的名字
         log.debug(' %-20s ]-[ Parameters in: %s' % (_func_name, str(args)))
         if args.__len__() == 1:
             _sub_result = subprocess.run(args['cmd'].encode(),

@@ -4,7 +4,7 @@ import os
 import re
 from urllib import parse, request
 
-from parser_exception import ReadFromServerException
+from .parser_exception import ReadFromServerException
 
 
 class ReadVersionInfoFromFTP(object):
@@ -40,7 +40,7 @@ class ReadVersionInfoFromFTP(object):
         if 'WELIVE' in url and url.startswith('http://10.0.2.188'):
             url = url.replace('WELIVE', 'GAMELIVE')
         # Chinese encoding.
-        url = parse.quote(url, safe='/:?=')
+        url = parse.quote(url, safe='/:?=')        #safe的部分为不进行编码的字符
         try:
             return request.urlopen(url=url).read().decode('utf-8')
         except request.HTTPError as http_err:
@@ -57,14 +57,14 @@ class ReadVersionInfoFromFTP(object):
             [String] -- [The version information of the biggest version]
         """
         _pg_res = self.read_page(self.url_stitching(project_name=project_name)).split()
-        _build = re.compile(r'[r]\d+')
+        _build = re.compile(r'[r]\d+')            #r1234
         # reversed version list. Promote efficiency.
         for ver in reversed(jira_ver):
             for index in range(1, _pg_res.__len__()):
                 # Matching in reversed
                 if ver in _pg_res[0 - index]:
                     _build_match = _build.search(_pg_res[0 - index])
-                    return 'V%s (%s) [正式版]' % (ver, _build_match.group(0).replace('r', ''))
+                    return 'V%s (%s) [正式版]' % (ver, _build_match.group(0).replace('r', ''))   # V2.4.0 (14959)
 
     def dsym_addr_stithing(self, project_name, v_type, pj_ld):
         """[summary]
@@ -79,25 +79,23 @@ class ReadVersionInfoFromFTP(object):
         _proj = str()
         _chl = str()
         if isinstance(pj_ld, dict):
-            # FIXME: type error.
             for pj_key in pj_ld.keys():
-                if project_name == 'GameLive':
-                    _proj = project_name
-                elif project_name == pj_ld[pj_key]:
-                    _proj = pj_key
+                if project_name in ('GameLive', 'STREAMCRAFT'):
+                    _proj = 'GameLive'
+                elif project_name == pj_ld[pj_key]:     #WeGamers
+                    _proj = pj_key          #GAMEIM
         else:
             for pj_key in pj_ld:
                 if project_name == pj_key:
                     _proj = pj_key
-                elif project_name == 'GameLive':
-                    _proj = project_name
-
+                elif project_name in ('GameLive', 'STREAMCRAFT'):
+                    _proj = 'GameLive'
         if v_type == 'appstore':
             _chl = self.dsym_published
         elif v_type == 'dev':
             _chl = self.dsym_dev
-
-        return os.path.join(self.domain, _proj, self.platform, _chl)
+        print (os.path.join(self.domain, _proj, self.platform, _chl))
+        return os.path.join(self.domain, _proj, self.platform, _chl)             #http://10.0.2.188/GAMEIM/ios/appstore/DSYM/
 
     def read_dsym_dlink(self, product_name, v_type, build_num, product_list):
         """[summary]
@@ -114,13 +112,15 @@ class ReadVersionInfoFromFTP(object):
         _pg_res = _pg_res.split('<tr>')
         _file = re.compile(r"[\w\_]*\.[\w]*\.[0-9].*\.zip")
         for index in range(1, _pg_res.__len__()):
-            _res = _pg_res[0 - index].find(build_num)
+            _res = _pg_res[0 - index].find(build_num)   #返回索引
             if _res > 0:
                 _line = _pg_res[0 - index]
                 _f_name = _file.search(_line)
                 return os.path.join(
                     self.dsym_addr_stithing(project_name=product_name, v_type=v_type, pj_ld=product_list),
-                    _f_name.group(0).replace('(', r'\(').replace(')', r'\)')
+                    _f_name.group(0).replace('(', r'\(').replace(')', r'\)')                   #返回DSYM文件地址
                 )
-        else:
-            raise ReadFromServerException("Can not get the file name from dSYM FTP with build version(%s)" % build_num)
+            else:
+                continue                                                                    #修改于2018.11.6
+
+        raise ReadFromServerException("Can not get the file name from dSYM FTP with build version(%s)" % build_num)
