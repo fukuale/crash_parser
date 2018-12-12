@@ -3,6 +3,7 @@
 
 import logging
 import sys
+import io
 
 # +++++++++++++++++++++++++++
 # 1) Data: log.info(' %-20s ]-[ %s ]-[ %s ]-[ Data: [ receive:%.2f KB/s , send:%.2f KB/s ] ' % (
@@ -11,6 +12,10 @@ import sys
 #                   func_name, py_pid, device_id, process_uid))
 # 3) Err : log.error(' %-20s ]-[ Memory usage source data can not match any data type ! ! ! ' % _func_name)
 # +++++++++++++++++++++++++++
+
+def setup_io():
+    sys.stdout = sys.__stdout__ = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8', line_buffering=True)
+    sys.stderr = sys.__stderr__ = io.TextIOWrapper(sys.stderr.detach(), encoding='utf-8', line_buffering=True)
 
 
 class Logger:
@@ -31,6 +36,7 @@ class Logger:
         file_stream.setLevel(Flevel)
         self.logger.addHandler(shell_stream)
         self.logger.addHandler(file_stream)
+        setup_io()
 
     @staticmethod
     def get_function_name():
